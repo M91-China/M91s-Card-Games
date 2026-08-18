@@ -1,19 +1,21 @@
 {
-  "name": "happy-card-games",
+  "name": "m91-card-games",
   "version": "0.1.0",
-  "description": "网页版欢乐斗地主 & 掼蛋 - HappyCard",
+  "description": "M91's Card Games - web-based card game collection featuring DouDiZhu and Guandan",
   "scripts": {
     "dev": "npx live-server --port=5500 --open=/src/index.html",
     "serve": "npx live-server --port=5500"
   },
   "keywords": [
+    "m91",
+    "card-games",
     "doudizhu",
     "guandan",
-    "card-game",
+    "web-game",
     "斗地主",
     "掼蛋"
   ],
-  "author": "HappyCard Team",
+  "author": "M91's Card Games Team",
   "license": "MIT",
   "devDependencies": {
     "live-server": "^1.2.2"
