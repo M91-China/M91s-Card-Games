@@ -1,0 +1,198 @@
+.auth-form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 320px;
+}
+
+.auth-tabs {
+  display: flex;
+  gap: 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+  padding: 6px;
+}
+
+.auth-tab {
+  flex: 1;
+  background: transparent;
+  color: rgba(255,255,255,0.8);
+  border: none;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.auth-tab.active {
+  background: linear-gradient(135deg, #0a6e3e, #0d8a4e);
+  color: white;
+  box-shadow: 0 8px 16px rgba(10,110,62,0.3);
+}
+
+.auth-field {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.auth-field label {
+  color: rgba(255,255,255,0.82);
+  font-size: 13px;
+}
+
+.auth-field input {
+  border: 1px solid rgba(255,255,255,0.1);
+  background: rgba(255,255,255,0.04);
+  color: white;
+  border-radius: 10px;
+  padding: 12px 14px;
+  font-size: 15px;
+}
+
+.auth-field input:focus {
+  outline: none;
+  border-color: rgba(77, 170, 255, 0.8);
+  box-shadow: 0 0 0 3px rgba(77, 170, 255, 0.15);
+}
+
+.auth-check {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(255,255,255,0.8);
+  font-size: 13px;
+}
+
+.auth-check input {
+  width: 18px;
+  height: 18px;
+}
+
+.auth-action-row {
+  display: flex;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.auth-action-row .btn {
+  flex: 1;
+}
+
+.user-profile-box {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-width: 320px;
+}
+
+.user-profile-header {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 10px;
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.08);
+  border-radius: 12px;
+}
+
+.user-profile-avatar {
+  width: 54px;
+  height: 54px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, #0a6e3e, #0d8a4e);
+  font-size: 28px;
+}
+
+.user-profile-meta {
+  flex: 1;
+}
+
+.user-profile-meta .name {
+  font-size: 18px;
+  font-weight: 700;
+  color: white;
+}
+
+.user-profile-meta .time {
+  color: rgba(255,255,255,0.7);
+  font-size: 12px;
+}
+
+.user-profile-stats {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(100px, 1fr));
+  gap: 10px;
+}
+
+.user-stat {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 12px;
+  padding: 10px 12px;
+}
+
+.user-stat .num {
+  display: block;
+  color: white;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.user-stat .label {
+  display: block;
+  color: rgba(255,255,255,0.68);
+  font-size: 12px;
+  margin-top: 4px;
+}
+
+.profile-actions {
+  display: flex;
+  gap: 10px;
+}
+
+.profile-actions .btn {
+  flex: 1;
+}
+
+.user-history-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 220px;
+  overflow-y: auto;
+}
+
+.user-history-item {
+  background: rgba(255,255,255,0.04);
+  border: 1px solid rgba(255,255,255,0.07);
+  border-radius: 10px;
+  padding: 10px 12px;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  color: rgba(255,255,255,0.8);
+  font-size: 12px;
+}
+
+.user-history-item strong {
+  color: white;
+}
+
+.user-history-item .res {
+  font-weight: 700;
+}
+
+.user-history-item .res.win {
+  color: #7bf2a8;
+}
+
+.user-history-item .res.lose {
+  color: #ff8a8a;
+}

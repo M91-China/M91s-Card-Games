@@ -1,5 +1,11 @@
 # M91's Card Games
 
+<p align="center">
+  <a href="https://M91-China.github.io/happy-card-games/" target="_blank" rel="noopener noreferrer">
+    <img src="https://img.shields.io/badge/🎮_立即体验-M91's_Card_Games-667eea?style=for-the-badge&logo=github" alt="开始游戏">
+  </a>
+</p>
+
 M91's Card Games 是一个基于原生 HTML/CSS/JavaScript 的网页版扑克牌游戏集合，包含欢乐斗地主与掼蛋两种玩法。项目以 VSCode 为开发环境，采用前端静态页面结构，覆盖牌型规则、AI 策略、界面渲染、动画音效与本地数据统计等功能，适合用于前端游戏开发学习、原型演示和二次开发。
 
 ## 当前版本：阶段10（文档、最终整合、工程交付）

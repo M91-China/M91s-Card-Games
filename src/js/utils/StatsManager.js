@@ -8,8 +8,15 @@
 class StatsManager {
   constructor(storageInstance) {
     this.storage = storageInstance || (typeof window !== 'undefined' ? window.storage : null);
+    this.userManager = (typeof window !== 'undefined' ? window.userManager : null);
     this.STATS_KEY = 'stats';
     this.ACH_KEY = 'achievements';
+  }
+
+  _getCurrentUserStats() {
+    const user = this.userManager && this.userManager.getCurrentUser ? this.userManager.getCurrentUser() : null;
+    if (!user || !user.stats) return null;
+    return user.stats;
   }
 
   /**
@@ -41,6 +48,11 @@ class StatsManager {
    * 读取并补齐统计结构（兼容旧数据）
    */
   getStats() {
+    const currentUserStats = this._getCurrentUserStats();
+    if (currentUserStats) {
+      return currentUserStats;
+    }
+
     const defaults = {
       doudizhu: this._defaultGameStats(),
       guandan: this._defaultGameStats()
@@ -87,6 +99,22 @@ class StatsManager {
    * @returns {Array} 新解锁的成就列表
    */
   recordDoudizhu(detail) {
+    const currentUser = this.userManager && this.userManager.getCurrentUser();
+    if (currentUser) {
+      const payload = {
+        game: 'doudizhu',
+        isWin: !!detail.isWin,
+        role: detail.role || 'farmer',
+        bombs: detail.bombs || 0,
+        rockets: detail.rockets || 0,
+        multiplayer: detail.multiplier || 1,
+        scoreDelta: detail.scoreDelta || 0,
+        detail: `${detail.role === 'landlord' ? '地主' : '农民'} · 倍数×${detail.multiplier || 1}`
+      };
+      this.userManager.saveGameResult(payload);
+      return [];
+    }
+
     const stats = this.getStats();
     const d = stats.doudizhu;
     d.totalGames++;
@@ -123,6 +151,24 @@ class StatsManager {
    * @returns {Array} 新解锁的成就列表
    */
   recordGuandan(detail) {
+    const currentUser = this.userManager && this.userManager.getCurrentUser();
+    if (currentUser) {
+      const payload = {
+        game: 'guandan',
+        isWin: !!detail.isWin,
+        role: detail.role || 'team',
+        bombs: detail.bombs || 0,
+        rockets: detail.rockets || 0,
+        upLevel: detail.upLevel || 0,
+        multiplayer: detail.multiplier || 1,
+        scoreDelta: detail.scoreDelta || 0,
+        detail: `升${detail.upLevel || 0}级 · ${detail.levelDisplay || ''}`,
+        partner: detail.partner || ''
+      };
+      this.userManager.saveGameResult(payload);
+      return [];
+    }
+
     const stats = this.getStats();
     const g = stats.guandan;
     g.totalGames++;

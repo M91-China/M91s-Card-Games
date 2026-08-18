@@ -14,6 +14,7 @@
   <link rel="stylesheet" href="css/cards.css" />
   <link rel="stylesheet" href="css/animations.css" />
   <link rel="stylesheet" href="css/hall.css" />
+  <link rel="stylesheet" href="css/login.css" />
   <link rel="stylesheet" href="css/mobile.css" />
 </head>
 <body>
@@ -28,6 +29,7 @@
           </div>
         </div>
         <div class="header-actions">
+          <button class="btn btn-primary btn-press" id="authBtn" title="登录/注册" style="padding:8px 12px; font-size:13px;">登录</button>
           <button class="icon-btn" id="statsBtn" title="数据统计">📊</button>
           <button class="icon-btn" id="replayBtn" title="对局回放">📹</button>
           <button class="icon-btn" id="achBtn" title="成就">🏅</button>
@@ -82,6 +84,8 @@
   <script src="js/data/achievements.js"></script>
   <script src="js/utils/utils.js"></script>
   <script src="js/utils/storage.js"></script>
+  <script src="js/user/Storage.js"></script>
+  <script src="js/user/UserManager.js"></script>
   <script src="js/utils/StatsManager.js"></script>
   <script src="js/utils/ReplayManager.js"></script>
   <script src="js/core/EventBus.js"></script>
@@ -99,12 +103,23 @@
       const storage = window.storage;
       const ui = window.uiManager;
       const sound = window.sound;
+      const userManager = window.userManager || null;
+
+      function getCurrentAuthUser() {
+        return userManager ? userManager.getCurrentUser() : null;
+      }
 
       function loadPlayerInfo() {
+        const currentUser = getCurrentAuthUser();
         let info = storage.get('player_info');
-        if (!info) {
-          info = { name: '玩家' + Math.floor(Math.random() * 9000 + 1000), avatar: '😎', coins: 1000 };
-          storage.set('player_info', info);
+        if (currentUser) {
+          info = {
+            name: currentUser.username,
+            avatar: currentUser.avatar || '😎',
+            coins: (info && info.coins) || 1000
+          };
+        } else if (!info) {
+          info = { name: '游客', avatar: '😎', coins: 1000 };
         }
         document.getElementById('playerName').textContent = info.name;
         document.getElementById('playerAvatar').textContent = info.avatar || '😎';
@@ -112,9 +127,15 @@
       }
 
       function loadStats() {
-        const s = window.statsManager.getSummary();
-        document.getElementById('playerStats').textContent =
-          `积分: ${s.score} | 胜率: ${s.winRate} (${s.wins}胜${s.losses}负) | 🏅${s.unlockedCount}/${s.totalAchievements}`;
+        const user = getCurrentAuthUser();
+        let summary = user ? userManager.getCurrentStatsSummary() : window.statsManager.getSummary();
+        if (user) {
+          document.getElementById('playerStats').textContent =
+            `账号: ${user.username} | 场次: ${summary.totalGames} | 胜率: ${summary.winRate} | 最高连胜: ${summary.maxStreak}`;
+        } else {
+          document.getElementById('playerStats').textContent =
+            `积分: ${summary.score} | 胜率: ${summary.winRate} (${summary.wins}胜${summary.losses}负) | 🏅${summary.unlockedCount}/${summary.totalAchievements}`;
+        }
       }
 
       function loadHistory() {
@@ -340,10 +361,288 @@
         };
       }
 
+      function renderAuthButton() {
+        const btn = document.getElementById('authBtn');
+        if (!btn) return;
+        const user = getCurrentAuthUser();
+        btn.textContent = user ? `已登录: ${user.username}` : '登录';
+      }
+
+      function openChangePasswordModal() {
+        if (!userManager) {
+          ui.toast('用户系统未初始化');
+          return;
+        }
+
+        const content = document.createElement('div');
+        content.className = 'auth-form';
+        content.innerHTML = `
+          <div class="auth-field">
+            <label>旧密码</label>
+            <input type="password" id="oldPasswordInput" maxlength="30" placeholder="请输入当前密码" />
+          </div>
+          <div class="auth-field">
+            <label>新密码</label>
+            <input type="password" id="newPasswordInput" maxlength="30" placeholder="请输入新密码（至少4位）" />
+          </div>
+          <div class="auth-field">
+            <label>确认新密码</label>
+            <input type="password" id="confirmPasswordInput" maxlength="30" placeholder="再次输入新密码" />
+          </div>
+        `;
+
+        const modal = ui.modal({
+          title: '修改密码',
+          content,
+          buttons: [
+            { text: '提交', type: 'primary' },
+            { text: '取消', type: 'gray' }
+          ]
+        });
+
+        const submitBtn = modal.parentElement && modal.parentElement.querySelector ? modal.parentElement.querySelector('.btn-primary') : null;
+        const cancelBtn = modal.parentElement && modal.parentElement.querySelector ? modal.parentElement.querySelector('.btn-gray') : null;
+
+        if (submitBtn) {
+          submitBtn.addEventListener('click', () => {
+            const oldPassword = document.getElementById('oldPasswordInput').value;
+            const newPassword = document.getElementById('newPasswordInput').value;
+            const confirmPassword = document.getElementById('confirmPasswordInput').value;
+
+            if (!oldPassword || !newPassword || !confirmPassword) {
+              ui.toast('请填写完整密码信息');
+              return;
+            }
+            if (newPassword !== confirmPassword) {
+              ui.toast('两次新密码输入不一致');
+              return;
+            }
+            try {
+              userManager.changePassword(oldPassword, newPassword);
+              ui.toast('密码修改成功');
+              modal.parentElement.classList.add('fade-out');
+              setTimeout(() => modal.parentElement.remove(), 250);
+            } catch (err) {
+              ui.toast(err.message || '修改失败');
+            }
+          });
+        }
+
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', () => {
+            modal.parentElement.classList.add('fade-out');
+            setTimeout(() => modal.parentElement.remove(), 250);
+          });
+        }
+      }
+
+      function openUserProfileModal() {
+        const user = getCurrentAuthUser();
+        if (!user) {
+          openAuthModal();
+          return;
+        }
+
+        const summary = userManager.getCurrentStatsSummary();
+        const d = user.stats && user.stats.doudizhu ? user.stats.doudizhu : { totalGames: 0, wins: 0, losses: 0, winRate: 0, history: [], maxStreak: 0 };
+        const g = user.stats && user.stats.guandan ? user.stats.guandan : { totalGames: 0, wins: 0, losses: 0, winRate: 0, history: [], maxStreak: 0 };
+        const allHistory = []
+          .concat((d.history || []).map((h) => ({ ...h, game: '斗地主' })))
+          .concat((g.history || []).map((h) => ({ ...h, game: '掼蛋' })))
+          .sort((a, b) => (a.time < b.time ? 1 : -1))
+          .slice(0, 8);
+
+        const content = document.createElement('div');
+        content.className = 'user-profile-box';
+        content.innerHTML = `
+          <div class="user-profile-header">
+            <div class="user-profile-avatar">${user.avatar || '😎'}</div>
+            <div class="user-profile-meta">
+              <div class="name">${user.username}</div>
+              <div class="time">注册时间：${new Date(user.createTime || Date.now()).toLocaleDateString('zh-CN')}</div>
+            </div>
+          </div>
+          <div class="user-profile-stats">
+            <div class="user-stat"><span class="num">${summary.totalGames}</span><span class="label">总局数</span></div>
+            <div class="user-stat"><span class="num">${summary.wins}</span><span class="label">胜场</span></div>
+            <div class="user-stat"><span class="num">${summary.losses}</span><span class="label">败场</span></div>
+            <div class="user-stat"><span class="num">${summary.winRate}</span><span class="label">胜率</span></div>
+          </div>
+          <div class="profile-actions">
+            <button class="btn btn-primary btn-press" id="profileChangePassBtn">修改密码</button>
+            <button class="btn btn-gray btn-press" id="profileLogoutBtn">退出登录</button>
+          </div>
+          <div class="auth-field">
+            <label>最近战绩</label>
+            <div class="user-history-list">
+              ${allHistory.length ? allHistory.map((h) => `
+                <div class="user-history-item">
+                  <div>
+                    <strong>${h.game}</strong><br>
+                    <span>${h.detail || '对局'}</span>
+                  </div>
+                  <div class="res ${h.result === '胜' ? 'win' : 'lose'}">${h.result || '未结算'}</div>
+                </div>
+              `).join('') : '<div class="user-history-item"><span>暂无记录</span></div>'}
+            </div>
+          </div>
+        `;
+
+        const modal = ui.modal({
+          title: '个人中心',
+          content,
+          buttons: [{ text: '关闭', type: 'gray' }]
+        });
+
+        const closeBtn = modal.parentElement && modal.parentElement.querySelector ? modal.parentElement.querySelector('.btn-gray') : null;
+        if (closeBtn) {
+          closeBtn.addEventListener('click', () => {
+            modal.parentElement.classList.add('fade-out');
+            setTimeout(() => modal.parentElement.remove(), 250);
+          });
+        }
+
+        const changePassBtn = content.querySelector('#profileChangePassBtn');
+        if (changePassBtn) {
+          changePassBtn.addEventListener('click', () => {
+            modal.parentElement.classList.add('fade-out');
+            setTimeout(() => modal.parentElement.remove(), 250);
+            setTimeout(() => openChangePasswordModal(), 280);
+          });
+        }
+
+        const logoutBtn = content.querySelector('#profileLogoutBtn');
+        if (logoutBtn) {
+          logoutBtn.addEventListener('click', () => {
+            modal.parentElement.classList.add('fade-out');
+            setTimeout(() => modal.parentElement.remove(), 250);
+            userManager.logout();
+            loadPlayerInfo();
+            loadStats();
+            loadHistory();
+            renderAuthButton();
+            ui.toast('已退出登录');
+          });
+        }
+      }
+
+      function openAuthModal() {
+        if (!userManager) {
+          ui.toast('用户系统未初始化');
+          return;
+        }
+
+        const state = { mode: 'login' };
+        const wrapper = document.createElement('div');
+        wrapper.className = 'auth-form';
+
+        const tabs = document.createElement('div');
+        tabs.className = 'auth-tabs';
+
+        const loginTab = document.createElement('button');
+        loginTab.type = 'button';
+        loginTab.className = 'auth-tab active';
+        loginTab.textContent = '登录';
+
+        const registerTab = document.createElement('button');
+        registerTab.type = 'button';
+        registerTab.className = 'auth-tab';
+        registerTab.textContent = '注册';
+
+        const userField = document.createElement('div');
+        userField.className = 'auth-field';
+        userField.innerHTML = '<label>用户名</label><input type="text" id="authUser" maxlength="20" placeholder="请输入用户名" />';
+
+        const passField = document.createElement('div');
+        passField.className = 'auth-field';
+        passField.innerHTML = '<label>密码</label><input type="password" id="authPass" maxlength="30" placeholder="请输入密码" />';
+
+        const rememberWrap = document.createElement('div');
+        rememberWrap.className = 'auth-check';
+        rememberWrap.innerHTML = '<span>记住我（7天自动登录）</span><input type="checkbox" id="rememberMe" checked />';
+
+        const actionRow = document.createElement('div');
+        actionRow.className = 'auth-action-row';
+        const submitBtn = document.createElement('button');
+        submitBtn.className = 'btn btn-primary btn-press';
+        submitBtn.textContent = '登录';
+        const secondaryBtn = document.createElement('button');
+        secondaryBtn.className = 'btn btn-gray btn-press';
+        secondaryBtn.textContent = '取消';
+        actionRow.appendChild(submitBtn);
+        actionRow.appendChild(secondaryBtn);
+
+        tabs.appendChild(loginTab);
+        tabs.appendChild(registerTab);
+        wrapper.appendChild(tabs);
+        wrapper.appendChild(userField);
+        wrapper.appendChild(passField);
+        wrapper.appendChild(rememberWrap);
+        wrapper.appendChild(actionRow);
+
+        const modal = ui.modal({
+          title: '登录 / 注册',
+          content: wrapper,
+          buttons: []
+        });
+
+        const switchMode = (nextMode) => {
+          state.mode = nextMode;
+          loginTab.classList.toggle('active', nextMode === 'login');
+          registerTab.classList.toggle('active', nextMode === 'register');
+          submitBtn.textContent = nextMode === 'login' ? '登录' : '注册';
+        };
+
+        loginTab.addEventListener('click', () => switchMode('login'));
+        registerTab.addEventListener('click', () => switchMode('register'));
+
+        submitBtn.addEventListener('click', () => {
+          const username = document.getElementById('authUser').value.trim();
+          const password = document.getElementById('authPass').value;
+          const remember = document.getElementById('rememberMe').checked;
+
+          if (!username || !password) {
+            ui.toast('用户名和密码不能为空');
+            return;
+          }
+
+          try {
+            if (state.mode === 'register') {
+              userManager.register(username, password);
+              ui.toast('注册成功，已自动登录');
+              userManager.login(username, password, remember);
+            } else {
+              userManager.login(username, password, remember);
+              ui.toast('登录成功');
+            }
+
+            modal.parentElement.classList.add('fade-out');
+            setTimeout(() => modal.parentElement.remove(), 250);
+            loadPlayerInfo();
+            loadStats();
+            loadHistory();
+            renderAuthButton();
+          } catch (err) {
+            ui.toast(err.message || '操作失败');
+          }
+        });
+
+        secondaryBtn.addEventListener('click', () => {
+          modal.parentElement.classList.add('fade-out');
+          setTimeout(() => modal.parentElement.remove(), 250);
+        });
+      }
+
       function init() {
+        const rememberedUser = userManager ? userManager.autoLogin() : null;
+        if (rememberedUser) {
+          ui.toast('已自动登录：' + rememberedUser.username, 1500);
+        }
+
         loadPlayerInfo();
         loadStats();
         loadHistory();
+        renderAuthButton();
 
         document.getElementById('entryDoudizhu').addEventListener('click', () => {
           sound.playClick();
@@ -368,6 +667,14 @@
         });
         document.getElementById('achBtn').addEventListener('click', openAchievements);
         document.getElementById('themeBtn').addEventListener('click', cycleTheme);
+        document.getElementById('authBtn').addEventListener('click', () => {
+          const currentUser = getCurrentAuthUser();
+          if (currentUser) {
+            openUserProfileModal();
+            return;
+          }
+          openAuthModal();
+        });
 
         const settings = storage.get('settings');
         if (settings) {
