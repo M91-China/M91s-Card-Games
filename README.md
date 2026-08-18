@@ -1,7 +1,7 @@
 # M91's Card Games
 
 <p align="center">
-  <a href="[https://M91-China.github.io/happy-card-games/](https://m91-china.github.io/M91s-Card-Games/src/index.html)" target="_blank" rel="noopener noreferrer">
+  <a href="https://M91-China.github.io/M91s-Card-Games/src/index.html" target="_blank" rel="noopener noreferrer">
     <img src="https://img.shields.io/badge/🎮_立即体验-M91's_Card_Games-667eea?style=for-the-badge&logo=github" alt="开始游戏">
   </a>
 </p>
