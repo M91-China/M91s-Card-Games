@@ -1,0 +1,37 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "name": "Chrome 调试 (localhost:5500)",
+      "type": "chrome",
+      "request": "launch",
+      "url": "http://localhost:5500/src/index.html",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "sourceMapPathOverrides": {
+        "webpack:///./src/*": "${webRoot}/*"
+      },
+      "userDataDir": "${workspaceFolder}/.vscode/chrome-debug-profile",
+      "runtimeArgs": [
+        "--auto-open-devtools-for-tabs"
+      ]
+    },
+    {
+      "name": "Edge 调试 (localhost:5500)",
+      "type": "msedge",
+      "request": "launch",
+      "url": "http://localhost:5500/src/index.html",
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true,
+      "userDataDir": "${workspaceFolder}/.vscode/edge-debug-profile"
+    },
+    {
+      "name": "Chrome 附加到已运行实例",
+      "type": "chrome",
+      "request": "attach",
+      "port": 9222,
+      "webRoot": "${workspaceFolder}/src",
+      "sourceMaps": true
+    }
+  ]
+}

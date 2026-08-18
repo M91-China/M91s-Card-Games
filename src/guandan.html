@@ -1,0 +1,659 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a6e3e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.json" />
+  <title>掼蛋 - HappyCard</title>
+  <link rel="stylesheet" href="css/reset.css" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/cards.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/hall.css" />
+  <link rel="stylesheet" href="css/guandan.css" />
+  <link rel="stylesheet" href="css/mobile.css" />
+  <script>
+    (function(){try{var t=localStorage.getItem('happycard_theme');if(t){t=JSON.parse(t);if(t)document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();
+  </script>
+</head>
+<body>
+  <div id="app">
+    <div class="gd-container" id="gameContainer">
+      <div class="game-topbar">
+        <button class="icon-btn back-btn" id="backBtn" title="返回大厅">←</button>
+        <div class="game-title" style="color:var(--color-gold);">掼 蛋</div>
+        <div class="game-info">
+          <div class="info-chip">
+            <span class="label">阶段</span>
+            <span class="value" id="phaseLabel">准备</span>
+          </div>
+          <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
+        </div>
+      </div>
+
+      <!-- 级牌与双方等级 -->
+      <div class="level-display">
+        <div class="level-label">当前级牌</div>
+        <div class="level-value" id="levelValue">2</div>
+        <div class="team-levels">
+          <span class="tl a" id="teamALevel">我方：2</span>
+          <span class="tl b" id="teamBLevel">对方：2</span>
+        </div>
+      </div>
+
+      <!-- 对家（上方，队友） -->
+      <div class="gd-seat partner" id="seat3">
+        <div class="seat-info">
+          <div class="seat-avatar team-a">🤖</div>
+          <div class="seat-name">对家</div>
+          <div class="seat-count" id="count3">27张</div>
+        </div>
+        <div class="opponent-hand" id="hand3"></div>
+      </div>
+
+      <!-- 左家 -->
+      <div class="gd-seat left" id="seat1">
+        <div class="seat-info">
+          <div class="seat-avatar team-b">🤖</div>
+          <div class="seat-name">左家</div>
+          <div class="seat-count" id="count1">27张</div>
+        </div>
+        <div class="opponent-hand" id="hand1"></div>
+      </div>
+
+      <!-- 右家 -->
+      <div class="gd-seat right" id="seat2">
+        <div class="seat-info">
+          <div class="seat-avatar team-b">🤖</div>
+          <div class="seat-name">右家</div>
+          <div class="seat-count" id="count2">27张</div>
+        </div>
+        <div class="opponent-hand" id="hand2"></div>
+      </div>
+
+      <!-- 出牌区 -->
+      <div class="gd-play-area">
+        <div class="gd-play-slot partner" id="play3"></div>
+        <div class="gd-play-slot left" id="play1"></div>
+        <div class="gd-center-hint" id="centerHint">点击"开始游戏"发牌</div>
+        <div class="gd-play-slot right" id="play2"></div>
+        <div class="gd-play-slot me" id="play0"></div>
+      </div>
+
+      <!-- 我的手牌 -->
+      <div class="gd-my-hand">
+        <div class="hand-cards" id="myHand"></div>
+      </div>
+
+      <!-- 工具栏 -->
+      <div class="gd-toolbar">
+        <button class="btn btn-success btn-press" id="dealBtn">开始游戏</button>
+        <button class="btn btn-gray btn-press" id="sortBtn">排序</button>
+        <button class="btn btn-gray btn-press" id="clearSelBtn">取消选中</button>
+      </div>
+
+      <!-- 操作栏 -->
+      <div class="gd-action-bar">
+        <button class="action-btn hint btn-press" id="hintBtn">提示</button>
+        <button class="action-btn play btn-press" id="playBtn">出牌</button>
+        <button class="action-btn pass btn-press" id="passBtn">不出</button>
+      </div>
+
+      <!-- 结算面板 -->
+      <div class="gd-result" id="resultPanel" style="display:none;">
+        <h2 id="resultTitle">本局结束</h2>
+        <div id="resultRanks"></div>
+        <div class="level-info" id="resultLevel"></div>
+        <div style="display:flex;gap:12px;justify-content:center;">
+          <button class="btn btn-primary btn-press" id="nextHandBtn">下一局</button>
+          <button class="result-btn" id="resultReplayBtn">📹 查看回放</button>
+          <button class="btn btn-gray btn-press" id="resultBackBtn">返回大厅</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script src="js/data/constants.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/achievements.js"></script>
+  <script src="js/utils/utils.js"></script>
+  <script src="js/utils/storage.js"></script>
+  <script src="js/utils/StatsManager.js"></script>
+  <script src="js/utils/ReplayManager.js"></script>
+  <script src="js/utils/EmojiChat.js"></script>
+  <script src="js/core/EventBus.js"></script>
+  <script src="js/core/Card.js"></script>
+  <script src="js/core/Deck.js"></script>
+  <script src="js/core/Hand.js"></script>
+  <script src="js/rules/GuandanRule.js"></script>
+  <script src="js/ui/Renderer.js"></script>
+  <script src="js/ui/CardRenderer.js"></script>
+  <script src="js/ui/Animation.js"></script>
+  <script src="js/ui/SoundManager.js"></script>
+  <script src="js/ui/UIManager.js"></script>
+  <script src="js/ui/DebugPanel.js"></script>
+  <script src="js/game/GameBase.js"></script>
+  <script src="js/ai/CardCounter.js"></script>
+  <script src="js/ai/HandEvaluator.js"></script>
+  <script src="js/ai/GuandanAI.js"></script>
+  <script src="js/game/GuandanGame.js"></script>
+
+  <script>
+    /**
+     * 掼蛋游戏页面 - 4人2v2、进贡还贡、出牌轮转、名次判定与升级
+     */
+    class GuandanPage {
+      constructor() {
+        this.cardRenderer = new CardRenderer();
+        this.game = null;
+        this._speechTimers = {};
+        this._bombCount = 0;
+        this._straightFlushCount = 0;
+        this._skyBombCount = 0;
+        this._initGame();
+        this._bindUI();
+        this._initEmojiChat();
+      }
+
+      _initEmojiChat() {
+        const container = document.getElementById('gameContainer');
+        this.emojiChat = new EmojiChat(container, {
+          onSend: (text) => {
+            const mySeat = document.querySelector('.gd-my-hand');
+            if (mySeat) {
+              mySeat.style.position = 'relative';
+              EmojiChat.showBubble(mySeat, text);
+            }
+            sound.playClick();
+            setTimeout(() => this._aiReact(text), 800 + Math.random() * 1500);
+          }
+        });
+      }
+
+      _aiReact() {
+        if (!this.game || this.game.state !== 'playing') return;
+        if (Math.random() > 0.3) return;
+        const aiIds = ['seat1', 'seat2', 'seat3'];
+        const seatId = aiIds[Math.floor(Math.random() * aiIds.length)];
+        const seat = document.getElementById(seatId);
+        if (!seat) return;
+        const reactions = ['🤣', '👏', '😎', '👍', '打得好！', '配合不错', '🤔', '💪', '炸！'];
+        const react = reactions[Math.floor(Math.random() * reactions.length)];
+        const seatInfo = seat.querySelector('.seat-info') || seat;
+        EmojiChat.showBubble(seatInfo, react);
+      }
+
+      _initGame() {
+        this.game = new GuandanGame({
+          container: '#gameContainer',
+          gameType: 'guandan',
+          onStateChange: (s) => this._onStateChange(s),
+          onPlayCard: (idx, cards, info) => this._onPlayCard(idx, cards, info),
+          onPass: (idx) => this._onPass(idx),
+          onGameOver: (r) => this._onGameOver(r),
+          onMatchOver: (r) => this._onMatchOver(r),
+          onTribute: (from, to, card, kind) => this._onTribute(from, to, card, kind),
+          onLevelChange: (r) => this._onLevelChange(r),
+          onMessage: (msg) => this._toast(msg)
+        });
+
+        if (window.Utils && window.Utils.isDebug() && window.DebugPanel) {
+          this.debugPanel = new DebugPanel(this.game);
+        }
+      }
+
+      _bindUI() {
+        document.getElementById('backBtn').onclick = () => {
+          if (typeof sound !== 'undefined') sound.playClick();
+          window.location.href = 'index.html';
+        };
+        document.getElementById('settingsBtn').onclick = () => {
+          if (typeof sound !== 'undefined') sound.playClick();
+          this._openSettings();
+        };
+        document.getElementById('resultBackBtn').onclick = () => {
+          if (typeof sound !== 'undefined') sound.playClick();
+          window.location.href = 'index.html';
+        };
+        document.getElementById('dealBtn').onclick = () => this._startGame();
+        document.getElementById('sortBtn').onclick = () => {
+          const h = this.game.getMyHand();
+          if (h) { h.sort(); this._renderMyHand(); }
+        };
+        document.getElementById('clearSelBtn').onclick = () => {
+          const h = this.game.getMyHand();
+          if (h) { h.clearSelection(); this._renderMyHand(); }
+        };
+        document.getElementById('playBtn').onclick = () => this._onPlayerPlay();
+        document.getElementById('passBtn').onclick = () => this._onPlayerPass();
+        document.getElementById('hintBtn').onclick = () => this._onPlayerHint();
+        document.getElementById('nextHandBtn').onclick = () => this._nextHand();
+        document.getElementById('resultReplayBtn').onclick = () => {
+          if (typeof sound !== 'undefined') sound.playClick();
+          if (this._replayRecorder) {
+            window.location.href = 'replay.html?id=' + this._replayRecorder.id;
+          }
+        };
+
+        const settings = storage.get('settings');
+        if (settings) {
+          sound.setEnabled(settings.sound !== false);
+          sound.setVolume(settings.volume != null ? settings.volume : 0.6);
+        }
+      }
+
+      _startGame() {
+        this._replayRecorder = replayManager.createRecorder('guandan');
+        this._bombCount = 0;
+        this._straightFlushCount = 0;
+        this._skyBombCount = 0;
+        document.getElementById('dealBtn').disabled = true;
+        document.getElementById('resultPanel').style.display = 'none';
+        document.getElementById('centerHint').textContent = '发牌中...';
+        this._clearAllPlaySlots();
+        // 简单发牌动画后开始
+        setTimeout(() => {
+          this.game.startNewGame();
+          if (this._replayRecorder && this.game.hands) {
+            this._replayRecorder.recordDeal(this.game.hands, []);
+          }
+        }, 400);
+      }
+
+      _nextHand() {
+        this._replayRecorder = replayManager.createRecorder('guandan');
+        this._bombCount = 0;
+        this._straightFlushCount = 0;
+        this._skyBombCount = 0;
+        document.getElementById('resultPanel').style.display = 'none';
+        this._clearAllPlaySlots();
+        this.game.startNewGame();
+        if (this._replayRecorder && this.game.hands) {
+          this._replayRecorder.recordDeal(this.game.hands, []);
+        }
+      }
+
+      /* ---------------- 状态与回调 ---------------- */
+
+      _onStateChange(state) {
+        const labels = {
+          [Constants.GameState.IDLE]: '准备',
+          [Constants.GameState.DEALING]: '发牌',
+          [Constants.GameState.BIDDING]: '进贡',
+          [Constants.GameState.PLAYING]: '出牌中',
+          [Constants.GameState.SETTLING]: '结算',
+          [Constants.GameState.FINISHED]: '结束'
+        };
+        document.getElementById('phaseLabel').textContent = labels[state] || state;
+        if (state === Constants.GameState.PLAYING) {
+          document.getElementById('dealBtn').disabled = false;
+          this._renderMyHand();
+          for (let i = 1; i <= 3; i++) this._renderOpponentBacks(i);
+          this._updateLevelDisplay();
+          this._updateTurnIndicator();
+        }
+      }
+
+      _onPlayCard(idx, cards, info) {
+        if (this._replayRecorder) this._replayRecorder.recordPlay(idx, cards, info);
+        this._renderPlayedCards(idx, cards);
+        this._showSpeech(idx, this._cardTypeName(info.type));
+        this._updateAllCounts();
+        if (idx === 0) this._renderMyHand();
+        this._clearOtherPlaySlots(idx);
+        this._updateTurnIndicator();
+
+        // 音效与特效
+        if (info.type === 'sky_bomb') {
+          sound.playRocket();
+          animation.rocket();
+          if (idx === 0) this._skyBombCount++;
+        } else if (info.type === 'straight_flush') {
+          sound.playBomb();
+          animation.boom(null, '同花顺');
+          if (idx === 0) this._straightFlushCount++;
+        } else if (info.type === 'bomb') {
+          sound.playBomb();
+          animation.boom();
+          if (idx === 0) this._bombCount++;
+        } else {
+          sound.playPlayCard();
+        }
+
+        if (this.game.lastPlay && this.game.lastPlay.player === idx) {
+          document.getElementById('centerHint').textContent =
+            this.game.players[idx].name + '出了' + this._cardTypeName(info.type);
+        }
+      }
+
+      _onPass(idx) {
+        if (this._replayRecorder) this._replayRecorder.recordPass(idx);
+        sound.playPass();
+        this._showSpeech(idx, '不出');
+        this._clearPlaySlot(idx);
+        this._updateTurnIndicator();
+        if (idx === 0) {
+          document.getElementById('centerHint').textContent = '您选择不出';
+        }
+      }
+
+      _onTribute(from, to, card, kind) {
+        if (this._replayRecorder) this._replayRecorder.recordTribute(from, to, [card]);
+        const text = kind === 'tribute' ? '进贡' : '还贡';
+        this._toast(this.game.players[from].name + '向' + this.game.players[to].name + text + '：' + card.display);
+      }
+
+      _onLevelChange(r) {
+        this._updateLevelDisplay();
+      }
+
+      _onGameOver(r) {
+        this._updateTurnIndicator();
+        const isWin = r.winTeam === 0;
+        const panel = document.getElementById('resultPanel');
+        const ranksDiv = document.getElementById('resultRanks');
+        const title = document.getElementById('resultTitle');
+        const levelDiv = document.getElementById('resultLevel');
+        ranksDiv.innerHTML = '';
+        r.placements.forEach((pidx, rank) => {
+          const row = document.createElement('div');
+          row.className = 'rank-row' + (this.game.teamOf[pidx] === r.winTeam ? ' win' : '');
+          row.textContent = '第' + (rank + 1) + '名：' + this.game.players[pidx].name +
+            '（' + (this.game.teamOf[pidx] === 0 ? '我方' : '对方') + '）';
+          ranksDiv.appendChild(row);
+        });
+        title.textContent = (r.winTeam === 0 ? '🎉 我方获胜！' : '😢 对方获胜');
+        title.style.color = isWin ? 'var(--color-gold)' : 'var(--color-red)';
+        levelDiv.textContent = '升' + r.upLevel + '级，下局打 ' +
+          GuandanRule.valueToLevelDisplay(r.teamLevel[r.winTeam]);
+        panel.style.display = 'block';
+        document.getElementById('centerHint').textContent = r.message;
+
+        // 音效与特效
+        if (isWin) {
+          sound.playWin();
+          animation.coins(40);
+        } else {
+          sound.playLose();
+        }
+        this._saveStats(isWin, r);
+        if (this._replayRecorder) {
+          this._replayRecorder.recordGameOver({
+            winTeam: r.winTeam,
+            upLevel: r.upLevel,
+            placements: r.placements,
+            teamLevel: r.teamLevel,
+            levelValue: r.levelValue
+          });
+          replayManager.save(this._replayRecorder);
+        }
+      }
+
+      _onMatchOver(r) {
+        document.getElementById('resultTitle').textContent =
+          (r.winTeam === 0 ? '我方' : '对方') + '打A成功，整场胜利！';
+      }
+
+      /* ---------------- 玩家操作 ---------------- */
+
+      _onPlayerPlay() {
+        const myHand = this.game.getMyHand();
+        if (!myHand) { this._toast('请先开始游戏'); return; }
+        const selected = myHand.getSelected();
+        if (selected.length === 0) { this._toast('请先选择要出的牌'); return; }
+        const res = this.game.playerPlay(selected);
+        if (!res.ok) { this._toast(res.msg); }
+        else {
+          myHand.clearSelection();
+          sound.playPlayCard();
+        }
+      }
+
+      _onPlayerPass() {
+        if (!this.game.getMyHand()) return;
+        const res = this.game.playerPass();
+        if (!res.ok) this._toast(res.msg);
+        else sound.playPass();
+      }
+
+      _onPlayerHint() {
+        const myHand = this.game.getMyHand();
+        if (!myHand || this.game.state !== Constants.GameState.PLAYING) {
+          this._toast('当前不是出牌阶段'); return;
+        }
+        if (this.game.currentPlayer !== 0) { this._toast('还没轮到您'); return; }
+        const lastCards = (this.game.lastPlay && this.game.lastPlay.player !== 0)
+          ? this.game.lastPlay.cards : null;
+        const hints = GuandanRule.findHints(myHand, lastCards, this.game.currentLevelValue);
+        if (!hints || hints.length === 0) {
+          this._toast('没有能压过的牌，请选择"不出"'); return;
+        }
+        myHand.clearSelection();
+        hints[0].forEach(c => myHand.select(c));
+        this._renderMyHand();
+        const name = this._cardTypeName(GuandanRule.judge(hints[0], this.game.currentLevelValue).type);
+        this._toast('提示：' + name + '（共' + hints.length + '种选择）');
+      }
+
+      /* ---------------- 渲染 ---------------- */
+
+      _renderMyHand() {
+        const area = document.getElementById('myHand');
+        const myHand = this.game.getMyHand();
+        if (myHand) {
+          this.cardRenderer.renderHand(myHand, area, { faceUp: true, selectable: true, overlap: 26 });
+          // 标记逢人配
+          myHand.cards.forEach(c => {
+            if (c.isWild) {
+              const el = area.querySelector('[data-card-id="' + c.id + '"]');
+              if (el) el.classList.add('wild-card');
+            }
+          });
+        }
+      }
+
+      _renderOpponentBacks(idx) {
+        const area = document.getElementById('hand' + idx);
+        if (!area) return;
+        area.innerHTML = '';
+        const count = this.game.hands[idx].cards.length;
+        this.cardRenderer.renderBacks(count, area, { overlap: 14 });
+      }
+
+      _renderPlayedCards(idx, cards) {
+        const slot = document.getElementById('play' + idx);
+        if (!slot) return;
+        slot.innerHTML = '';
+        this.cardRenderer.renderPlayedCards(cards, slot);
+        cards.forEach(c => {
+          if (c.isWild) {
+            const el = slot.querySelector('[data-card-id="' + c.id + '"]');
+            if (el) el.classList.add('wild-card');
+          }
+        });
+      }
+
+      _clearPlaySlot(idx) {
+        const slot = document.getElementById('play' + idx);
+        if (slot) slot.innerHTML = '';
+      }
+
+      _clearOtherPlaySlots(exceptIdx) {
+        for (let i = 0; i < 4; i++) {
+          if (i !== exceptIdx) this._clearPlaySlot(i);
+        }
+      }
+
+      _clearAllPlaySlots() {
+        for (let i = 0; i < 4; i++) this._clearPlaySlot(i);
+      }
+
+      _updateAllCounts() {
+        for (let i = 0; i < 4; i++) {
+          const count = this.game.hands[i].cards.length;
+          if (i === 0) continue;
+          document.getElementById('count' + i).textContent = count + '张';
+          if (count === 0) {
+            document.getElementById('hand' + i).innerHTML = '';
+          } else {
+            this._renderOpponentBacks(i);
+          }
+        }
+      }
+
+      _updateLevelDisplay() {
+        document.getElementById('levelValue').textContent = this.game.getLevelDisplay();
+        document.getElementById('teamALevel').textContent =
+          '我方：' + GuandanRule.valueToLevelDisplay(this.game.teamLevel[0]);
+        document.getElementById('teamBLevel').textContent =
+          '对方：' + GuandanRule.valueToLevelDisplay(this.game.teamLevel[1]);
+      }
+
+      _updateTurnIndicator() {
+        for (let i = 0; i < 4; i++) {
+          const seat = document.getElementById('seat' + i);
+          if (seat) seat.classList.remove('active');
+        }
+        if (this.game.state === Constants.GameState.PLAYING) {
+          const seat = document.getElementById('seat' + this.game.currentPlayer);
+          if (seat) seat.classList.add('active');
+        }
+      }
+
+      _showSpeech(idx, text) {
+        if (this._speechTimers[idx]) {
+          clearTimeout(this._speechTimers[idx]);
+          const old = document.getElementById('speech' + idx);
+          if (old) old.remove();
+        }
+        const seat = document.getElementById('seat' + idx);
+        if (!seat) return;
+        const bubble = document.createElement('div');
+        bubble.id = 'speech' + idx;
+        bubble.className = 'speech-bubble';
+        bubble.textContent = text;
+        const rect = seat.getBoundingClientRect();
+        const cr = document.getElementById('gameContainer').getBoundingClientRect();
+        bubble.style.left = (rect.left - cr.left + rect.width / 2 - 40) + 'px';
+        bubble.style.top = (rect.top - cr.top - 36) + 'px';
+        document.getElementById('gameContainer').appendChild(bubble);
+        this._speechTimers[idx] = setTimeout(() => bubble.remove(), 1600);
+      }
+
+      _cardTypeName(type) {
+        return (typeof CARD_TYPE_NAME !== 'undefined' && CARD_TYPE_NAME[type]) || type;
+      }
+
+      _toast(msg) {
+        if (typeof uiManager !== 'undefined' && uiManager.toast) {
+          uiManager.toast(msg);
+        } else {
+          const h = document.getElementById('centerHint');
+          if (h) h.textContent = msg;
+        }
+      }
+
+      _saveStats(isWin, r) {
+        try {
+          const scoreDelta = r.upLevel * (isWin ? 1 : -1);
+          const levelDisplay = GuandanRule.valueToLevelDisplay(r.teamLevel[r.winTeam]);
+          const newly = statsManager.recordGuandan({
+            isWin,
+            upLevel: r.upLevel,
+            bombs: this._bombCount,
+            straightFlushes: this._straightFlushCount,
+            skyBombs: this._skyBombCount,
+            levelValue: r.levelValue,
+            levelDisplay,
+            scoreDelta
+          });
+          if (newly && newly.length > 0) {
+            setTimeout(() => this._showAchievementUnlock(newly), 800);
+          }
+        } catch (e) { Utils.warn('保存战绩失败', e); }
+      }
+
+      _showAchievementUnlock(achievements) {
+        achievements.forEach((a, i) => {
+          setTimeout(() => {
+            sound.playWin();
+            const toast = document.createElement('div');
+            toast.className = 'achievement-toast';
+            toast.innerHTML =
+              '<div class="ach-icon">' + a.icon + '</div>' +
+              '<div class="ach-info">' +
+              '<div class="ach-label">🏅 成就解锁</div>' +
+              '<div class="ach-name">' + a.name + '</div>' +
+              '<div class="ach-desc">' + a.desc + '</div>' +
+              '</div>';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.classList.add('show'), 10);
+            setTimeout(() => {
+              toast.classList.remove('show');
+              setTimeout(() => toast.remove(), 500);
+            }, 4000);
+          }, i * 300);
+        });
+      }
+
+      _openSettings() {
+        const settings = storage.get('settings') || {
+          difficulty: 'normal', sound: true, animation: true, volume: 0.6
+        };
+        const isDebug = Utils.isDebug();
+        const content = document.createElement('div');
+        content.innerHTML =
+          '<div class="switch-row"><span>音效</span>' +
+          '<div class="switch ' + (settings.sound !== false ? 'on' : '') + '" id="setSound"></div></div>' +
+          '<div class="switch-row"><span>动画特效</span>' +
+          '<div class="switch ' + (settings.animation !== false ? 'on' : '') + '" id="setAnim"></div></div>' +
+          '<div class="switch-row"><span>音量</span>' +
+          '<input type="range" min="0" max="1" step="0.1" value="' + (settings.volume != null ? settings.volume : 0.6) + '" id="setVol" style="width:120px;"></div>' +
+          '<div class="switch-row"><span>🐛 调试模式 (Ctrl+Shift+D)</span>' +
+          '<div class="switch ' + (isDebug ? 'on' : '') + '" id="setDebug"></div></div>';
+        const box = uiManager.modal({ title: '游戏设置', content, buttons: [{ text: '保存', type: 'primary' }] });
+        setTimeout(() => {
+          content.querySelector('#setSound').onclick = (e) => {
+            settings.sound = !settings.sound;
+            e.currentTarget.classList.toggle('on', settings.sound);
+          };
+          content.querySelector('#setAnim').onclick = (e) => {
+            settings.animation = !settings.animation;
+            e.currentTarget.classList.toggle('on', settings.animation);
+          };
+          content.querySelector('#setVol').oninput = (e) => {
+            settings.volume = parseFloat(e.target.value);
+            sound.setVolume(settings.volume);
+          };
+          content.querySelector('#setDebug').onclick = (e) => {
+            const newDebug = !Utils.isDebug();
+            try { localStorage.setItem('happycard_debug', String(newDebug)); } catch (err) {}
+            e.currentTarget.classList.toggle('on', newDebug);
+            uiManager.toast(newDebug ? '调试模式已开启，按Ctrl+Shift+D打开面板' : '调试模式已关闭，刷新后生效');
+          };
+        }, 0);
+        box.querySelector('.btn-primary').onclick = () => {
+          storage.set('settings', settings);
+          sound.setEnabled(settings.sound !== false);
+          sound.setVolume(settings.volume != null ? settings.volume : 0.6);
+          if (settings.animation === false && animation && animation.stop) animation.stop();
+          uiManager.toast('设置已保存');
+          box.parentElement.classList.add('fade-out');
+          setTimeout(() => box.parentElement.remove(), 250);
+        };
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      window.page = new GuandanPage();
+    });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    }
+  </script>
+</body>
+</html>

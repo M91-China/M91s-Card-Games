@@ -1,0 +1,646 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <title>规则引擎单元测试 - HappyCard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Microsoft YaHei', sans-serif; background: #0f1729; color: #e8eaf0; padding: 24px; margin: 0; }
+    h1 { color: #ffd24a; margin: 0 0 8px; }
+    .back-link { display: inline-block; margin-bottom: 12px; color: #7eb6ff; text-decoration: none; font-size: 14px; }
+    .back-link:hover { text-decoration: underline; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+    button { padding: 10px 20px; font-size: 15px; background: #0d8a4e; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #0f9b58; }
+    .summary { font-size: 16px; padding: 12px 18px; background: rgba(255,255,255,0.06); border-radius: 8px; }
+    .summary .pass { color: #4caf50; font-weight: bold; }
+    .summary .fail { color: #ef5350; font-weight: bold; }
+    .summary .rate { color: #ffd24a; font-weight: bold; }
+    .group { margin: 20px 0; }
+    .group h2 { color: #7eb6ff; font-size: 17px; border-left: 4px solid #7eb6ff; padding-left: 10px; margin: 0 0 10px; }
+    .group.guandan h2 { color: #ff9b7e; border-left-color: #ff9b7e; }
+    .case { padding: 8px 14px; margin: 4px 0; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .pass { background: rgba(76,175,80,0.15); border-left: 4px solid #4caf50; }
+    .fail { background: rgba(239,83,80,0.15); border-left: 4px solid #ef5350; }
+    .case .desc { flex: 1; }
+    .case .expect { color: rgba(255,255,255,0.55); margin: 0 12px; font-size: 12px; }
+    .case .tag { font-weight: bold; }
+    .case.pass .tag { color: #4caf50; }
+    .case.fail .tag { color: #ef5350; }
+    .cards { color: #ffd24a; }
+    select { padding: 8px 12px; border-radius: 6px; border: 1px solid #333; background: #1a2440; color: #fff; }
+    .game-tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 10px; margin-left: 8px; vertical-align: middle; }
+    .game-tag.doudizhu { background: rgba(126,182,255,0.2); color: #7eb6ff; }
+    .game-tag.guandan { background: rgba(255,155,126,0.2); color: #ff9b7e; }
+  </style>
+</head>
+<body>
+  <a href="../src/index.html" class="back-link">← 返回大厅</a>
+  <h1>🃏 规则引擎单元测试</h1>
+  <p>测试 DoudizhuRule 与 GuandanRule 的牌型判断、牌型比较、提示功能。</p>
+  <div class="toolbar">
+    <button onclick="runAll()">▶ 重新运行测试</button>
+    <select id="gameFilter" onchange="render()">
+      <option value="all">全部规则</option>
+      <option value="doudizhu">斗地主</option>
+      <option value="guandan">掼蛋</option>
+    </select>
+    <select id="filter" onchange="render()">
+      <option value="all">全部用例</option>
+      <option value="fail">仅看失败</option>
+      <option value="pass">仅看通过</option>
+    </select>
+    <div class="summary" id="summary">点击"重新运行测试"</div>
+  </div>
+  <div id="groups"></div>
+
+  <script src="../src/js/data/constants.js"></script>
+  <script src="../src/js/core/Card.js"></script>
+  <script src="../src/js/core/Deck.js"></script>
+  <script src="../src/js/core/Hand.js"></script>
+  <script src="../src/js/rules/DoudizhuRule.js"></script>
+  <script src="../src/js/rules/GuandanRule.js"></script>
+
+  <script>
+    function C(suit, rank) { return new Card(suit, rank); }
+    function makeCards(str) {
+      const suits = { S: 'spade', H: 'heart', D: 'diamond', C: 'club' };
+      const result = [];
+      const parts = str.split(',');
+      for (const p of parts) {
+        const t = p.trim();
+        if (t === '小王') { result.push(new Card('joker', 'SMALL_JOKER')); continue; }
+        if (t === '大王') { result.push(new Card('joker', 'BIG_JOKER')); continue; }
+        if (t.length >= 2 && suits[t[0]]) {
+          result.push(new Card(suits[t[0]], t.slice(1)));
+        } else {
+          result.push(new Card('spade', t));
+        }
+      }
+      return result;
+    }
+
+    function cardStr(cards) {
+      return cards.map(c => c.toString()).join(' ');
+    }
+
+    const testGroups = [];
+    let allResults = [];
+
+    function group(name, fn, game) {
+      testGroups.push({ name, fn, game: game || 'doudizhu' });
+    }
+
+    function eq(actual, expected) { return JSON.stringify(actual) === JSON.stringify(expected); }
+
+    // ========= 斗地主：牌型判断 - 基础牌型 =========
+    group('斗地主 - 牌型判断 - 基础牌型', () => {
+      const cases = [
+        { desc: '单张3', cards: '3', expect: CardType.SINGLE },
+        { desc: '单张A', cards: 'A', expect: CardType.SINGLE },
+        { desc: '单张2', cards: '2', expect: CardType.SINGLE },
+        { desc: '小王', cards: '小王', expect: CardType.SINGLE },
+        { desc: '大王', cards: '大王', expect: CardType.SINGLE },
+        { desc: '对子5', cards: 'S5,H5', expect: CardType.PAIR },
+        { desc: '对子2', cards: 'S2,H2', expect: CardType.PAIR },
+        { desc: '三张7', cards: 'S7,H7,D7', expect: CardType.TRIPLE },
+        { desc: '三带一 333+5', cards: 'S3,H3,D3,S5', expect: CardType.TRIPLE_SINGLE },
+        { desc: '三带二 888+99', cards: 'S8,H8,D8,S9,H9', expect: CardType.TRIPLE_PAIR },
+        { desc: '炸弹 4个A', cards: 'SA,HA,DA,CA', expect: CardType.BOMB },
+        { desc: '炸弹 4个2', cards: 'S2,H2,D2,C2', expect: CardType.BOMB },
+        { desc: '王炸', cards: '小王,大王', expect: CardType.ROCKET }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = DoudizhuRule.judge(cards);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect && r.isValid, expect: tc.expect, actual: r.type };
+      });
+    });
+
+    group('斗地主 - 牌型判断 - 顺子', () => {
+      const cases = [
+        { desc: '顺子 3-7 (5张)', cards: '3,4,5,6,7', expect: CardType.STRAIGHT },
+        { desc: '顺子 5-9 (5张)', cards: '5,6,7,8,9', expect: CardType.STRAIGHT },
+        { desc: '顺子 10-A (5张)', cards: '10,J,Q,K,A', expect: CardType.STRAIGHT },
+        { desc: '顺子 3-A (12张)', cards: '3,4,5,6,7,8,9,10,J,Q,K,A', expect: CardType.STRAIGHT },
+        { desc: '非顺子 含2', cards: '3,4,5,6,2', expect: CardType.INVALID },
+        { desc: '非顺子 不连续', cards: '3,4,5,6,8', expect: CardType.INVALID },
+        { desc: '非顺子 4张', cards: '3,4,5,6', expect: CardType.INVALID }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = DoudizhuRule.judge(cards);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect, expect: CARD_TYPE_NAME[tc.expect], actual: CARD_TYPE_NAME[r.type] };
+      });
+    });
+
+    group('斗地主 - 牌型判断 - 连对', () => {
+      const cases = [
+        { desc: '连对 55-66-77', cards: 'S5,H5,S6,H6,S7,H7', expect: CardType.DOUBLE_STRAIGHT },
+        { desc: '连对 10-J-Q', cards: 'S10,H10,SJ,HJ,SQ,HQ', expect: CardType.DOUBLE_STRAIGHT },
+        { desc: '连对 7-8-9-10-J-Q (6对12张)', cards: 'S7,H7,S8,H8,S9,H9,S10,H10,SJ,HJ,SQ,HQ', expect: CardType.DOUBLE_STRAIGHT },
+        { desc: '非连对 仅2对', cards: 'S5,H5,S6,H6', expect: CardType.INVALID },
+        { desc: '非连对 含2', cards: 'S5,H5,S6,H6,S2,H2', expect: CardType.INVALID }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = DoudizhuRule.judge(cards);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect, expect: CARD_TYPE_NAME[tc.expect], actual: CARD_TYPE_NAME[r.type] };
+      });
+    });
+
+    group('斗地主 - 牌型判断 - 飞机', () => {
+      const cases = [
+        { desc: '飞机 333-444 (6张)', cards: 'S3,H3,D3,S4,H4,D4', expect: CardType.TRIPLE_STRAIGHT },
+        { desc: '飞机 555-666-777 (9张)', cards: 'S5,H5,D5,S6,H6,D6,S7,H7,D7', expect: CardType.TRIPLE_STRAIGHT },
+        { desc: '飞机带单 333-444+5+6', cards: 'S3,H3,D3,S4,H4,D4,S5,S6', expect: CardType.PLANE_SINGLE },
+        { desc: '飞机带对 333-444+55+66', cards: 'S3,H3,D3,S4,H4,D4,S5,H5,S6,H6', expect: CardType.PLANE_PAIR },
+        { desc: '非飞机 不连续三张', cards: 'S3,H3,D3,S5,H5,D5', expect: CardType.INVALID },
+        { desc: '非飞机 仅一组三张', cards: 'S3,H3,D3', expect: CardType.TRIPLE }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = DoudizhuRule.judge(cards);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect, expect: CARD_TYPE_NAME[tc.expect], actual: CARD_TYPE_NAME[r.type] };
+      });
+    });
+
+    group('斗地主 - 牌型判断 - 四带二', () => {
+      const cases = [
+        { desc: '四带二单 3333+5+6', cards: 'S3,H3,D3,C3,S5,S6', expect: CardType.FOUR_TWO_SINGLE },
+        { desc: '四带二对 3333+55+66', cards: 'S3,H3,D3,C3,S5,H5,S6,H6', expect: CardType.FOUR_TWO_PAIR },
+        { desc: '4张相同是炸弹不是四带二', cards: 'S3,H3,D3,C3', expect: CardType.BOMB }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = DoudizhuRule.judge(cards);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect, expect: CARD_TYPE_NAME[tc.expect], actual: CARD_TYPE_NAME[r.type] };
+      });
+    });
+
+    group('斗地主 - 牌型比较', () => {
+      const cases = [
+        { desc: '单张 A > K', a: 'A', b: 'K', expect: 1 },
+        { desc: '单张 K < A', a: 'K', b: 'A', expect: -1 },
+        { desc: '对子 AA > KK', a: 'SA,HA', b: 'SK,HK', expect: 1 },
+        { desc: '对子 22 > AA', a: 'S2,H2', b: 'SA,HA', expect: 1 },
+        { desc: '炸弹 > 单张', a: 'S3,H3,D3,C3', b: 'S2', expect: 1 },
+        { desc: '炸弹 > 顺子', a: 'S3,H3,D3,C3', b: '3,4,5,6,7', expect: 1 },
+        { desc: '大炸弹 > 小炸弹', a: 'S5,H5,D5,C5', b: 'S3,H3,D3,C3', expect: 1 },
+        { desc: '王炸 > 炸弹', a: '小王,大王', b: 'S2,H2,D2,C2', expect: 1 },
+        { desc: '王炸 > 任何牌', a: '小王,大王', b: '3,4,5,6,7,8,9,10,J,Q,K,A', expect: 1 },
+        { desc: '顺子 > 顺子(同长度)', a: '5,6,7,8,9', b: '3,4,5,6,7', expect: 1 },
+        { desc: '不同长度顺子不可比', a: '5,6,7,8,9,10', b: '3,4,5,6,7', expect: 0 },
+        { desc: '不同牌型不可比', a: 'S3,H3', b: 'S3', expect: 0 },
+        { desc: '三带一比较三张', a: 'S5,H5,D5,S2', b: 'S4,H4,D4,S3', expect: 1 }
+      ];
+      return cases.map(tc => {
+        const ca = makeCards(tc.a), cb = makeCards(tc.b);
+        const r = DoudizhuRule.compare(ca, cb);
+        return { desc: tc.desc, cards: ca, pass: r === tc.expect, expect: tc.expect, actual: r };
+      });
+    });
+
+    group('斗地主 - 提示功能 findHints', () => {
+      const results = [];
+      const hand1 = new Hand(makeCards('3,4,5,6,7,8,小王,H5,D5'));
+      const freeHints = DoudizhuRule.findHints(hand1, null);
+      results.push({
+        desc: '自由出牌能找到多种提示',
+        cards: hand1.cards,
+        pass: freeHints.length > 0,
+        expect: '>0组提示',
+        actual: freeHints.length + '组'
+      });
+
+      const hand2 = new Hand(makeCards('3,S7,K,2,S5'));
+      const hints2 = DoudizhuRule.findHints(hand2, makeCards('5'));
+      const has7 = hints2.some(h => h.length===1 && h[0].value===7);
+      const hasK = hints2.some(h => h.length===1 && h[0].value===13);
+      const has2 = hints2.some(h => h.length===1 && h[0].value===15);
+      const no5 = hints2.some(h => h.length===1 && h[0].value===5) === false;
+      results.push({
+        desc: '提示能压单张5 (7/K/2可压，5本身不行)',
+        cards: hand2.cards,
+        pass: has7 && hasK && has2 && no5,
+        expect: '7/K/2均出现',
+        actual: `7:${has7} K:${hasK} 2:${has2} 无5:${no5}`
+      });
+
+      const hand3 = new Hand(makeCards('S3,H3,S6,H6,S9,H9,S2,H2'));
+      const hints3 = DoudizhuRule.findHints(hand3, makeCards('S5,H5'));
+      results.push({
+        desc: '提示能压对5 (66/99/22)',
+        cards: hand3.cards,
+        pass: hints3.some(h=>h.length===2&&h[0].value===6) && hints3.some(h=>h.length===2&&h[0].value===9) && hints3.some(h=>h.length===2&&h[0].value===15),
+        expect: '66/99/22',
+        actual: `${hints3.filter(h=>h.length===2).length}个对子提示`
+      });
+
+      const hand4 = new Hand(makeCards('S3,H3,D3,C3,S5,H5,D5,C5,7,8'));
+      const hints4 = DoudizhuRule.findHints(hand4, makeCards('S2,H2,D2'));
+      results.push({
+        desc: '上家三带二，炸弹可压',
+        cards: hand4.cards,
+        pass: hints4.some(h=>DoudizhuRule.judge(h).type===CardType.BOMB),
+        expect: '含炸弹',
+        actual: `${hints4.length}组提示`
+      });
+
+      const hand5 = new Hand(makeCards('小王,大王,3,4'));
+      const hints5 = DoudizhuRule.findHints(hand5, makeCards('S2,H2,D2,C2'));
+      results.push({
+        desc: '王炸可压炸弹',
+        cards: hand5.cards,
+        pass: hints5.some(h=>DoudizhuRule.judge(h).type===CardType.ROCKET),
+        expect: '王炸',
+        actual: hints5.map(h=>CARD_TYPE_NAME[DoudizhuRule.judge(h).type]).join(',')
+      });
+
+      const hand6 = new Hand(makeCards('3,4,5,6,7,8,9,10,J'));
+      const hints6 = DoudizhuRule.findHints(hand6, makeCards('4,5,6,7,8'));
+      results.push({
+        desc: '提示能压顺子4-8（5-9或更长）',
+        cards: hand6.cards,
+        pass: hints6.some(h=>DoudizhuRule.judge(h).type===CardType.STRAIGHT && h.length===5),
+        expect: '5张顺子',
+        actual: `${hints6.filter(h=>h.length===5).length}组5张`
+      });
+
+      return results;
+    });
+
+    group('斗地主 - 边界情况', () => {
+      const results = [];
+      results.push({
+        desc: '空牌无效',
+        cards: [],
+        pass: DoudizhuRule.judge([]).isValid === false,
+        expect: 'invalid',
+        actual: DoudizhuRule.judge([]).type
+      });
+      results.push({
+        desc: 'Q,K,A,2不是顺子（2不能入顺）',
+        cards: makeCards('Q,K,A,2'),
+        pass: DoudizhuRule.judge(makeCards('Q,K,A,2')).type !== CardType.STRAIGHT,
+        expect: '非顺子',
+        actual: CARD_TYPE_NAME[DoudizhuRule.judge(makeCards('Q,K,A,2')).type]
+      });
+      results.push({
+        desc: '4张相同是炸弹不是三带一',
+        cards: makeCards('S3,H3,D3,C3'),
+        pass: DoudizhuRule.judge(makeCards('S3,H3,D3,C3')).type === CardType.BOMB,
+        expect: '炸弹',
+        actual: CARD_TYPE_NAME[DoudizhuRule.judge(makeCards('S3,H3,D3,C3')).type]
+      });
+      return results;
+    });
+
+    // ========= 掼蛋：基础牌型判断（默认打2，levelValue=15） =========
+    group('掼蛋 - 基础牌型判断（打2）', () => {
+      const lv = 15;
+      const cases = [
+        { desc: '单张3', cards: '3', expect: CardType.SINGLE },
+        { desc: '单张A', cards: 'SA', expect: CardType.SINGLE },
+        { desc: '单张小王', cards: '小王', expect: CardType.SINGLE },
+        { desc: '对子6', cards: 'S6,H6', expect: CardType.PAIR },
+        { desc: '对子AA', cards: 'SA,HA', expect: CardType.PAIR },
+        { desc: '三张8', cards: 'S8,H8,D8', expect: CardType.TRIPLE },
+        { desc: '三带二 777+99', cards: 'S7,H7,D7,S9,H9', expect: CardType.TRIPLE_PAIR },
+        { desc: '顺子 3-7', cards: 'S3,H4,S5,D6,S7', expect: CardType.STRAIGHT },
+        { desc: '连对/木板 55-66-77', cards: 'S5,H5,S6,H6,S7,H7', expect: CardType.DOUBLE_STRAIGHT },
+        { desc: '钢板 333-444', cards: 'S3,H3,D3,S4,H4,D4', expect: CardType.TRIPLE_STRAIGHT }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = GuandanRule.judge(cards, lv);
+        return { desc: tc.desc, cards, pass: r.type === tc.expect && r.isValid,
+          expect: CARD_TYPE_NAME[tc.expect], actual: CARD_TYPE_NAME[r.type] };
+      });
+    }, 'guandan');
+
+    // ========= 掼蛋：炸弹层级 =========
+    group('掼蛋 - 炸弹层级判断', () => {
+      const lv = 15;
+      const cases = [
+        { desc: '4炸 3333', cards: 'S3,H3,D3,C3', expect: CardType.BOMB, weight: 4 },
+        { desc: '5炸 55555', cards: 'S5,H5,D5,C5,S5', expect: CardType.BOMB, weight: 5 },
+        { desc: '6炸 666666', cards: 'S6,H6,D6,C6,S6,H6', expect: CardType.BOMB, weight: 6 },
+        { desc: '7炸 7777777', cards: 'S7,H7,D7,C7,S7,H7,D7', expect: CardType.BOMB, weight: 7 },
+        { desc: '8炸 88888888', cards: 'S8,H8,D8,C8,S8,H8,D8,C8', expect: CardType.BOMB, weight: 8 },
+        { desc: '同花顺 9-K（黑桃）', cards: 'S9,S10,SJ,SQ,SK', expect: CardType.STRAIGHT_FLUSH, weight: 5.5 },
+        { desc: '天王炸 2小王+2大王', cards: '小王,小王,大王,大王', expect: CardType.SKY_BOMB, weight: 999 }
+      ];
+      return cases.map(tc => {
+        const cards = makeCards(tc.cards);
+        const r = GuandanRule.judge(cards, lv);
+        const ok = r.type === tc.expect && r.isValid && r.bombWeight === tc.weight;
+        return { desc: tc.desc, cards, pass: ok,
+          expect: `${CARD_TYPE_NAME[tc.expect]}(weight=${tc.weight})`,
+          actual: `${CARD_TYPE_NAME[r.type]}(weight=${r.bombWeight})` };
+      });
+    }, 'guandan');
+
+    // ========= 掼蛋：级牌/逢人配（打5） =========
+    group('掼蛋 - 级牌/逢人配（打5，红桃5为百搭）', () => {
+      const lv = 5;
+      const results = [];
+
+      const h5 = makeCards('H5')[0], s5 = makeCards('S5')[0], h3 = makeCards('H3')[0], h2 = makeCards('H2')[0];
+      results.push({
+        desc: '红桃5 是逢人配（打5）',
+        cards: [h5], pass: GuandanRule.isWild(h5, lv) === true,
+        expect: 'true', actual: String(GuandanRule.isWild(h5, lv))
+      });
+      results.push({
+        desc: '黑桃5 不是百搭（仅红桃级牌）',
+        cards: [s5], pass: GuandanRule.isWild(s5, lv) === false,
+        expect: 'false', actual: String(GuandanRule.isWild(s5, lv))
+      });
+      results.push({
+        desc: '红桃3 不是百搭',
+        cards: [h3], pass: GuandanRule.isWild(h3, lv) === false,
+        expect: 'false', actual: String(GuandanRule.isWild(h3, lv))
+      });
+      results.push({
+        desc: '打2时红桃2才是百搭，红桃5不是',
+        cards: [h5, h2],
+        pass: GuandanRule.isWild(h2, 15) === true && GuandanRule.isWild(h5, 15) === false,
+        expect: 'H2@lv15=true, H5@lv15=false',
+        actual: `H2@lv15=${GuandanRule.isWild(h2,15)}, H5@lv15=${GuandanRule.isWild(h5,15)}`
+      });
+
+      const pairCards = makeCards('H5,S3');
+      const pairR = GuandanRule.judge(pairCards, lv);
+      results.push({
+        desc: '百搭+S3 凑成对子3',
+        cards: pairCards, pass: pairR.type === CardType.PAIR,
+        expect: CARD_TYPE_NAME[CardType.PAIR], actual: CARD_TYPE_NAME[pairR.type]
+      });
+
+      const tripleCards = makeCards('H5,S3,H3');
+      const tripleR = GuandanRule.judge(tripleCards, lv);
+      results.push({
+        desc: '百搭+S3+H3 凑成三张3',
+        cards: tripleCards, pass: tripleR.type === CardType.TRIPLE,
+        expect: CARD_TYPE_NAME[CardType.TRIPLE], actual: CARD_TYPE_NAME[tripleR.type]
+      });
+
+      const bombCards = makeCards('H5,S3,H3,D3');
+      const bombR = GuandanRule.judge(bombCards, lv);
+      results.push({
+        desc: '百搭+333 凑成4炸3',
+        cards: bombCards,
+        pass: bombR.type === CardType.BOMB && bombR.bombWeight === 4,
+        expect: `${CARD_TYPE_NAME[CardType.BOMB]}(weight=4)`,
+        actual: `${CARD_TYPE_NAME[bombR.type]}(weight=${bombR.bombWeight})`
+      });
+
+      const straightCards = makeCards('S3,S4,S6,S7,H5');
+      const straightR = GuandanRule.judge(straightCards, lv);
+      results.push({
+        desc: '百搭补位凑顺子 3-7',
+        cards: straightCards, pass: straightR.type === CardType.STRAIGHT,
+        expect: CARD_TYPE_NAME[CardType.STRAIGHT], actual: CARD_TYPE_NAME[straightR.type]
+      });
+
+      const cmpLv = GuandanRule.compare(makeCards('S5'), makeCards('SA'), lv);
+      results.push({
+        desc: '打5时级牌5大于A（有效值15.5）',
+        cards: makeCards('S5'), pass: cmpLv === 1,
+        expect: '1', actual: String(cmpLv)
+      });
+
+      return results;
+    }, 'guandan');
+
+    // ========= 掼蛋：牌型比较 =========
+    group('掼蛋 - 牌型比较（打2）', () => {
+      const lv = 15;
+      const b4 = makeCards('S3,H3,D3,C3');
+      const b5 = makeCards('S5,H5,D5,C5,S5');
+      const sf = makeCards('S9,S10,SJ,SQ,SK');
+      const b6 = makeCards('S6,H6,D6,C6,S6,H6');
+      const b7 = makeCards('S7,H7,D7,C7,S7,H7,D7');
+      const b8 = makeCards('S8,H8,D8,C8,S8,H8,D8,C8');
+      const sky = makeCards('小王,小王,大王,大王');
+
+      const cases = [
+        { desc: '单张 A > K', a: makeCards('SA'), b: makeCards('SK'), expect: 1 },
+        { desc: '对子 AA > KK', a: makeCards('SA,HA'), b: makeCards('SK,HK'), expect: 1 },
+        { desc: '对子 22 > AA（2最大）', a: makeCards('S2,H2'), b: makeCards('SA,HA'), expect: 1 },
+        { desc: '4炸 < 5炸', a: b4, b: b5, expect: -1 },
+        { desc: '5炸 < 同花顺', a: b5, b: sf, expect: -1 },
+        { desc: '同花顺 < 6炸', a: sf, b: b6, expect: -1 },
+        { desc: '6炸 < 7炸', a: b6, b: b7, expect: -1 },
+        { desc: '7炸 < 8炸', a: b7, b: b8, expect: -1 },
+        { desc: '8炸 < 天王炸', a: b8, b: sky, expect: -1 },
+        { desc: '天王炸 > 同花顺', a: sky, b: sf, expect: 1 },
+        { desc: '4炸压单张', a: b4, b: makeCards('S2'), expect: 1 },
+        { desc: '4炸压顺子', a: b4, b: makeCards('S3,H4,S5,D6,S7'), expect: 1 },
+        { desc: '同花顺压普通对子', a: sf, b: makeCards('SA,HA'), expect: 1 },
+        { desc: '顺子 > 顺子(同长度比顶端)', a: makeCards('H5,S6,D7,S8,H9'), b: makeCards('S3,H4,S5,D6,S7'), expect: 1 },
+        { desc: '不同长度普通牌型不可比', a: makeCards('SA,HA'), b: makeCards('SA'), expect: 0 },
+        { desc: '不同普通牌型不可比（对子vs三张）', a: makeCards('SA,HA'), b: makeCards('S3,H3,D3'), expect: 0 }
+      ];
+      return cases.map(tc => {
+        const r = GuandanRule.compare(tc.a, tc.b, lv);
+        return { desc: tc.desc, cards: tc.a, pass: r === tc.expect, expect: tc.expect, actual: r };
+      });
+    }, 'guandan');
+
+    // ========= 掼蛋：提示功能 =========
+    group('掼蛋 - 提示功能 findHints（打2）', () => {
+      const lv = 15;
+      const results = [];
+
+      const hand1 = new Hand(makeCards('S3,S4,S5,S6,S7,S8,S9,H6,D6'));
+      const freeHints = GuandanRule.findHints(hand1, null, lv);
+      results.push({
+        desc: '自由出牌能找到多种提示',
+        cards: hand1.cards, pass: freeHints.length > 0,
+        expect: '>0组提示', actual: freeHints.length + '组'
+      });
+
+      const hand2 = new Hand(makeCards('S3,S7,SK,SA,S2,S5'));
+      const hints2 = GuandanRule.findHints(hand2, makeCards('S5'), lv);
+      const h2has7 = hints2.some(h => h.length===1 && h[0].value===7);
+      const h2hasK = hints2.some(h => h.length===1 && h[0].value===13);
+      const h2hasA = hints2.some(h => h.length===1 && h[0].value===14);
+      const h2has2 = hints2.some(h => h.length===1 && h[0].value===15);
+      const h2no5  = hints2.some(h => h.length===1 && h[0].value===5) === false;
+      results.push({
+        desc: '提示压单张5：7/K/A/2可压，5本身不出现',
+        cards: hand2.cards,
+        pass: h2has7 && h2hasK && h2hasA && h2has2 && h2no5,
+        expect: '7/K/A/2均出现且无5',
+        actual: `7:${h2has7} K:${h2hasK} A:${h2hasA} 2:${h2has2} 无5:${h2no5}`
+      });
+
+      const hand3 = new Hand(makeCards('S3,H3,S6,H6,S9,H9,SA,HA'));
+      const hints3 = GuandanRule.findHints(hand3, makeCards('S5,H5'), lv);
+      results.push({
+        desc: '提示压对5：66/99/AA',
+        cards: hand3.cards,
+        pass: hints3.some(h=>h.length===2&&h[0].value===6) &&
+              hints3.some(h=>h.length===2&&h[0].value===9) &&
+              hints3.some(h=>h.length===2&&h[0].value===14),
+        expect: '66/99/AA',
+        actual: `${hints3.filter(h=>h.length===2).length}个对子提示`
+      });
+
+      const hand4 = new Hand(makeCards('S3,H3,D3,C3,S5,H5,D5,C5,S7,S8'));
+      const hints4 = GuandanRule.findHints(hand4, makeCards('S4,H5,D6,S7,H8'), lv);
+      results.push({
+        desc: '上家出顺子，炸弹可压',
+        cards: hand4.cards,
+        pass: hints4.some(h=>GuandanRule.judge(h, lv).type===CardType.BOMB),
+        expect: '含炸弹',
+        actual: `${hints4.length}组提示`
+      });
+
+      const hand5 = new Hand(makeCards('S3,H3,D3,C3,S8,H8,D8,C8,S8'));
+      const hints5 = GuandanRule.findHints(hand5, makeCards('小王,小王,大王,大王'), lv);
+      results.push({
+        desc: '天王炸无法被压（即使手中有8炸）',
+        cards: hand5.cards, pass: hints5.length === 0,
+        expect: '0组提示', actual: `${hints5.length}组提示`
+      });
+
+      const hand6 = new Hand(makeCards('S9,S10,SJ,SQ,SK,S3,H3,D3'));
+      const hints6 = GuandanRule.findHints(hand6, makeCards('SA,HA'), lv);
+      results.push({
+        desc: '同花顺可压对子',
+        cards: hand6.cards,
+        pass: hints6.some(h=>GuandanRule.judge(h, lv).type===CardType.STRAIGHT_FLUSH),
+        expect: '含同花顺',
+        actual: hints6.map(h=>CARD_TYPE_NAME[GuandanRule.judge(h,lv).type]).join(',')
+      });
+
+      return results;
+    }, 'guandan');
+
+    // ========= 掼蛋：边界情况 =========
+    group('掼蛋 - 边界情况（打5）', () => {
+      const lv = 5;
+      const results = [];
+
+      results.push({
+        desc: '空牌无效',
+        cards: [], pass: GuandanRule.judge([], lv).isValid === false,
+        expect: 'invalid', actual: GuandanRule.judge([], lv).type
+      });
+
+      const badPair = makeCards('S3,H6');
+      results.push({
+        desc: 'S3+H6 不是对子（打5，均非百搭）',
+        cards: badPair, pass: GuandanRule.judge(badPair, lv).type === CardType.INVALID,
+        expect: CARD_TYPE_NAME[CardType.INVALID],
+        actual: CARD_TYPE_NAME[GuandanRule.judge(badPair, lv).type]
+      });
+
+      const badTriple = makeCards('H5,S3,S4');
+      results.push({
+        desc: '百搭+3+4 不能凑成三张（需两张同点）',
+        cards: badTriple, pass: GuandanRule.judge(badTriple, lv).type === CardType.INVALID,
+        expect: CARD_TYPE_NAME[CardType.INVALID],
+        actual: CARD_TYPE_NAME[GuandanRule.judge(badTriple, lv).type]
+      });
+
+      const st2 = makeCards('S3,S4,S5,S6,S2');
+      results.push({
+        desc: '3,4,5,6,2 不是顺子（2不能入顺）',
+        cards: st2, pass: GuandanRule.judge(st2, lv).type !== CardType.STRAIGHT,
+        expect: '非顺子',
+        actual: CARD_TYPE_NAME[GuandanRule.judge(st2, lv).type]
+      });
+
+      const sfWild = makeCards('S3,S4,S6,S7,H5');
+      results.push({
+        desc: '含百搭的同花不是同花顺（只能算顺子）',
+        cards: sfWild,
+        pass: GuandanRule.judge(sfWild, lv).type === CardType.STRAIGHT,
+        expect: CARD_TYPE_NAME[CardType.STRAIGHT],
+        actual: CARD_TYPE_NAME[GuandanRule.judge(sfWild, lv).type]
+      });
+
+      const wildSingle = makeCards('H5');
+      results.push({
+        desc: '单张红桃5（百搭）是合法单张',
+        cards: wildSingle,
+        pass: GuandanRule.judge(wildSingle, lv).type === CardType.SINGLE &&
+              GuandanRule.judge(wildSingle, lv).isValid === true,
+        expect: CARD_TYPE_NAME[CardType.SINGLE],
+        actual: CARD_TYPE_NAME[GuandanRule.judge(wildSingle, lv).type]
+      });
+
+      const threeJokers = makeCards('小王,小王,大王');
+      results.push({
+        desc: '2小王+1大王 不是天王炸',
+        cards: threeJokers,
+        pass: GuandanRule.judge(threeJokers, lv).type === CardType.INVALID,
+        expect: CARD_TYPE_NAME[CardType.INVALID],
+        actual: CARD_TYPE_NAME[GuandanRule.judge(threeJokers, lv).type]
+      });
+
+      return results;
+    }, 'guandan');
+
+    function runAll() {
+      allResults = [];
+      for (const g of testGroups) {
+        try {
+          const cases = g.fn();
+          allResults.push({ name: g.name, game: g.game, cases });
+        } catch (e) {
+          allResults.push({ name: g.name + ' [异常]', game: g.game,
+            cases: [{ desc: e.message, pass: false, expect: '', actual: e.stack, cards: [] }] });
+        }
+      }
+      render();
+    }
+
+    function render() {
+      const gameFilter = document.getElementById('gameFilter').value;
+      const filter = document.getElementById('filter').value;
+      const groupsEl = document.getElementById('groups');
+      groupsEl.innerHTML = '';
+      let pass = 0, fail = 0;
+
+      for (const g of allResults) {
+        if (gameFilter !== 'all' && g.game !== gameFilter) continue;
+        const gCases = g.cases.filter(c => filter==='all' || (filter==='pass'&&c.pass) || (filter==='fail'&&!c.pass));
+        if (gCases.length === 0) continue;
+
+        const groupPass = g.cases.filter(c => c.pass).length;
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group ' + g.game;
+        const tag = g.game === 'guandan' ? '掼蛋' : '斗地主';
+        groupEl.innerHTML = `<h2>${g.name} <span class="game-tag ${g.game}">${tag}</span> (${groupPass}/${g.cases.length})</h2>`;
+
+        for (const c of gCases) {
+          const el = document.createElement('div');
+          el.className = 'case ' + (c.pass ? 'pass' : 'fail');
+          if (c.pass) pass++; else fail++;
+          const cardsHtml = c.cards && c.cards.length ? `<span class="cards">[${cardStr(c.cards)}]</span>` : '';
+          el.innerHTML = `
+            <span class="desc">${c.desc} ${cardsHtml}</span>
+            <span class="expect">期望: ${c.expect}</span>
+            <span class="expect">实际: ${c.actual}</span>
+            <span class="tag">${c.pass ? '✓ PASS' : '✗ FAIL'}</span>
+          `;
+          groupEl.appendChild(el);
+        }
+        groupsEl.appendChild(groupEl);
+      }
+
+      const total = pass + fail;
+      const rate = total ? ((pass/total)*100).toFixed(1) : 0;
+      document.getElementById('summary').innerHTML =
+        `总计 <b>${total}</b> ：<span class="pass">${pass} 通过</span> / <span class="fail">${fail} 失败</span> | 通过率 <span class="rate">${rate}%</span>`;
+    }
+
+    runAll();
+  </script>
+</body>
+</html>

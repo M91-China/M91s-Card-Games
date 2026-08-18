@@ -1,0 +1,21 @@
+{
+  "name": "happy-card-games",
+  "version": "0.1.0",
+  "description": "网页版欢乐斗地主 & 掼蛋 - HappyCard",
+  "scripts": {
+    "dev": "npx live-server --port=5500 --open=/src/index.html",
+    "serve": "npx live-server --port=5500"
+  },
+  "keywords": [
+    "doudizhu",
+    "guandan",
+    "card-game",
+    "斗地主",
+    "掼蛋"
+  ],
+  "author": "HappyCard Team",
+  "license": "MIT",
+  "devDependencies": {
+    "live-server": "^1.2.2"
+  }
+}

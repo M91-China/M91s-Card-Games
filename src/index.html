@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a6e3e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <link rel="manifest" href="manifest.json" />
+  <link rel="apple-touch-icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='32' fill='%230a6e3e'/><text x='96' y='130' font-size='100' text-anchor='middle'>🃏</text></svg>" />
+  <title>HappyCard - 欢乐斗地主 & 掼蛋</title>
+  <link rel="stylesheet" href="css/reset.css" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/cards.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/hall.css" />
+  <link rel="stylesheet" href="css/mobile.css" />
+</head>
+<body>
+  <div id="app">
+    <div class="hall-container">
+      <header class="hall-header">
+        <div class="player-info">
+          <div class="player-avatar" id="playerAvatar">😎</div>
+          <div class="player-detail">
+            <div class="player-name" id="playerName">玩家</div>
+            <div class="player-stats" id="playerStats">积分: 1000 | 胜率: --</div>
+          </div>
+        </div>
+        <div class="header-actions">
+          <button class="icon-btn" id="statsBtn" title="数据统计">📊</button>
+          <button class="icon-btn" id="replayBtn" title="对局回放">📹</button>
+          <button class="icon-btn" id="achBtn" title="成就">🏅</button>
+          <button class="icon-btn" id="themeBtn" title="切换主题">🎨</button>
+          <button class="icon-btn" id="settingsBtn" title="设置">⚙️</button>
+        </div>
+      </header>
+
+      <div class="hall-title">
+        <h1>HappyCard</h1>
+        <div class="subtitle">欢 乐 斗 地 主 · 掼 蛋</div>
+      </div>
+
+      <main class="game-entries">
+        <div class="game-card game-card-doudizhu" id="entryDoudizhu">
+          <span class="game-card-tag hot">HOT</span>
+          <div class="game-card-icon">🃏</div>
+          <div class="game-card-title">斗地主</div>
+          <div class="game-card-desc">三人对战 · 经典玩法<br>叫地主 · 抢地主 · 炸弹对决</div>
+        </div>
+        <div class="game-card game-card-guandan" id="entryGuandan">
+          <span class="game-card-tag hot">NEW</span>
+          <div class="game-card-icon">🎴</div>
+          <div class="game-card-title">掼 蛋</div>
+          <div class="game-card-desc">四人组队 · 对家配合<br>同花顺 · 天王炸 · 逢人配</div>
+        </div>
+        <div class="game-card game-card-challenge" id="entryChallenge">
+          <span class="game-card-tag">挑战</span>
+          <div class="game-card-icon">🏆</div>
+          <div class="game-card-title">残局挑战</div>
+          <div class="game-card-desc">破解经典残局<br>考验牌技与智慧</div>
+        </div>
+      </main>
+
+      <div class="history-panel" id="historyPanel">
+        <h3>最近战绩</h3>
+        <div id="historyList">
+          <div class="history-item">
+            <span>暂无记录</span>
+          </div>
+        </div>
+      </div>
+
+      <footer class="hall-footer">
+        HappyCard v0.6.0 · 斗地主 & 掼蛋 · 高级AI · 音效动画 · 战绩系统
+      </footer>
+    </div>
+  </div>
+
+  <script src="js/data/constants.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/achievements.js"></script>
+  <script src="js/utils/utils.js"></script>
+  <script src="js/utils/storage.js"></script>
+  <script src="js/utils/StatsManager.js"></script>
+  <script src="js/utils/ReplayManager.js"></script>
+  <script src="js/core/EventBus.js"></script>
+  <script src="js/core/Card.js"></script>
+  <script src="js/core/Deck.js"></script>
+  <script src="js/core/Hand.js"></script>
+  <script src="js/ui/Renderer.js"></script>
+  <script src="js/ui/CardRenderer.js"></script>
+  <script src="js/ui/Animation.js"></script>
+  <script src="js/ui/SoundManager.js"></script>
+  <script src="js/ui/UIManager.js"></script>
+
+  <script>
+    (function () {
+      const storage = window.storage;
+      const ui = window.uiManager;
+      const sound = window.sound;
+
+      function loadPlayerInfo() {
+        let info = storage.get('player_info');
+        if (!info) {
+          info = { name: '玩家' + Math.floor(Math.random() * 9000 + 1000), avatar: '😎', coins: 1000 };
+          storage.set('player_info', info);
+        }
+        document.getElementById('playerName').textContent = info.name;
+        document.getElementById('playerAvatar').textContent = info.avatar || '😎';
+        return info;
+      }
+
+      function loadStats() {
+        const s = window.statsManager.getSummary();
+        document.getElementById('playerStats').textContent =
+          `积分: ${s.score} | 胜率: ${s.winRate} (${s.wins}胜${s.losses}负) | 🏅${s.unlockedCount}/${s.totalAchievements}`;
+      }
+
+      function loadHistory() {
+        const stats = window.statsManager.getStats();
+        const dz = (stats.doudizhu && stats.doudizhu.history) || [];
+        const gd = (stats.guandan && stats.guandan.history) || [];
+        const all = []
+          .concat(dz.map((h) => ({ ...h, game: '斗地主' })))
+          .concat(gd.map((h) => ({ ...h, game: '掼蛋' })))
+          .sort((a, b) => (a.time < b.time ? 1 : -1))
+          .slice(0, 10);
+        const list = document.getElementById('historyList');
+        if (all.length === 0) {
+          list.innerHTML = '<div class="history-item"><span>暂无记录</span></div>';
+          return;
+        }
+        list.innerHTML = all
+          .map(
+            (h) => `
+          <div class="history-item">
+            <span>${h.game} · ${h.detail || ''}</span>
+            <span class="history-result ${h.result === '胜' ? 'win' : 'lose'}">${h.result || ''}${h.score != null ? ' (' + (h.score > 0 ? '+' : '') + h.score + ')' : ''}</span>
+          </div>`
+          )
+          .join('');
+      }
+
+      function openStats() {
+        sound.playClick();
+        const s = window.statsManager.getStats();
+        const dz = s.doudizhu;
+        const gd = s.guandan;
+        const pct = (w, l) => {
+          const t = w + l;
+          return t > 0 ? ((w / t) * 100).toFixed(1) + '%' : '--';
+        };
+        const levelDisplay = (v) => {
+          const map = { 11: 'J', 12: 'Q', 13: 'K', 14: 'A' };
+          return map[v] || String(v);
+        };
+        const content = document.createElement('div');
+        content.className = 'stats-panel';
+        content.innerHTML = `
+          <div class="stats-section">
+            <h4>🃏 斗地主</h4>
+            <div class="stats-grid">
+              <div class="stat-cell"><span class="num">${dz.totalGames}</span><span class="lbl">总局数</span></div>
+              <div class="stat-cell win"><span class="num">${dz.wins}</span><span class="lbl">胜利</span></div>
+              <div class="stat-cell lose"><span class="num">${dz.losses}</span><span class="lbl">失败</span></div>
+              <div class="stat-cell"><span class="num">${pct(dz.wins, dz.losses)}</span><span class="lbl">胜率</span></div>
+              <div class="stat-cell"><span class="num">${dz.landlordWins}</span><span class="lbl">地主胜</span></div>
+              <div class="stat-cell"><span class="num">${dz.farmerWins}</span><span class="lbl">农民胜</span></div>
+              <div class="stat-cell"><span class="num">${dz.bombs}</span><span class="lbl">炸弹</span></div>
+              <div class="stat-cell"><span class="num">${dz.rockets}</span><span class="lbl">王炸</span></div>
+              <div class="stat-cell"><span class="num">×${dz.maxMultiplier}</span><span class="lbl">最高倍数</span></div>
+              <div class="stat-cell"><span class="num">${dz.maxStreak}</span><span class="lbl">最高连胜</span></div>
+            </div>
+          </div>
+          <div class="stats-section">
+            <h4>🎴 掼蛋</h4>
+            <div class="stats-grid">
+              <div class="stat-cell"><span class="num">${gd.totalGames}</span><span class="lbl">总局数</span></div>
+              <div class="stat-cell win"><span class="num">${gd.wins}</span><span class="lbl">胜利</span></div>
+              <div class="stat-cell lose"><span class="num">${gd.losses}</span><span class="lbl">失败</span></div>
+              <div class="stat-cell"><span class="num">${pct(gd.wins, gd.losses)}</span><span class="lbl">胜率</span></div>
+              <div class="stat-cell"><span class="num">${gd.bombs}</span><span class="lbl">炸弹</span></div>
+              <div class="stat-cell"><span class="num">${gd.straightFlushes}</span><span class="lbl">同花顺</span></div>
+              <div class="stat-cell"><span class="num">${gd.skyBombs}</span><span class="lbl">天王炸</span></div>
+              <div class="stat-cell"><span class="num">${levelDisplay(gd.maxLevel)}</span><span class="lbl">最高等级</span></div>
+              <div class="stat-cell"><span class="num">${gd.maxStreak}</span><span class="lbl">最高连胜</span></div>
+            </div>
+          </div>
+        `;
+        const box = ui.modal({
+          title: '📊 数据统计',
+          content,
+          buttons: [{ text: '关闭', type: 'gray' }]
+        });
+        box.querySelector('.btn-gray').onclick = () => {
+          box.parentElement.classList.add('fade-out');
+          setTimeout(() => box.parentElement.remove(), 250);
+        };
+      }
+
+      function openAchievements() {
+        sound.playClick();
+        const states = window.statsManager.getAchievementStates();
+        const categories = [
+          { key: 'general', name: '综合成就', icon: '🌟' },
+          { key: 'doudizhu', name: '斗地主', icon: '🃏' },
+          { key: 'guandan', name: '掼蛋', icon: '🎴' }
+        ];
+        const content = document.createElement('div');
+        content.className = 'ach-panel';
+        let html = `<div class="ach-progress">已解锁 <b>${states.filter((a) => a.unlocked).length}</b> / ${states.length}</div>`;
+        categories.forEach((cat) => {
+          const list = states.filter((a) => a.category === cat.key);
+          html += `<div class="ach-cat"><h4>${cat.icon} ${cat.name}</h4><div class="ach-grid">`;
+          list.forEach((a) => {
+            html += `<div class="ach-card ${a.unlocked ? 'unlocked' : 'locked'}">
+              <div class="ach-card-icon">${a.icon}</div>
+              <div class="ach-card-name">${a.name}</div>
+              <div class="ach-card-desc">${a.desc}</div>
+            </div>`;
+          });
+          html += '</div></div>';
+        });
+        content.innerHTML = html;
+        const box = ui.modal({
+          title: '🏅 成就',
+          content,
+          buttons: [{ text: '关闭', type: 'gray' }]
+        });
+        box.querySelector('.btn-gray').onclick = () => {
+          box.parentElement.classList.add('fade-out');
+          setTimeout(() => box.parentElement.remove(), 250);
+        };
+      }
+
+      const THEMES = [
+        { key: '', name: '经典绿', icon: '🟢' },
+        { key: 'royal', name: '皇家紫', icon: '🟣' },
+        { key: 'ocean', name: '海洋蓝', icon: '🔵' },
+        { key: 'night', name: '暗夜黑', icon: '⚫' },
+        { key: 'festive', name: '喜庆红', icon: '🔴' }
+      ];
+
+      function cycleTheme() {
+        sound.playClick();
+        const current = document.documentElement.getAttribute('data-theme') || '';
+        const idx = THEMES.findIndex(t => t.key === current);
+        const next = THEMES[(idx + 1) % THEMES.length];
+        applyTheme(next.key);
+        storage.set('theme', next.key);
+        uiManager.toast(next.icon + ' 已切换为' + next.name, 1500);
+      }
+
+      function applyTheme(key) {
+        if (key) {
+          document.documentElement.setAttribute('data-theme', key);
+        } else {
+          document.documentElement.removeAttribute('data-theme');
+        }
+      }
+
+      // 启动时应用保存的主题
+      (function initTheme() {
+        const saved = storage.get('theme');
+        if (saved) applyTheme(saved);
+      })();
+
+      function openSettings() {
+        const settings = storage.get('settings') || {
+          difficulty: 'normal',
+          sound: true,
+          animation: true,
+          volume: 0.6
+        };
+        const content = document.createElement('div');
+        content.innerHTML = `
+          <div style="margin-bottom:8px;font-size:14px;">难度选择：</div>
+          <div class="difficulty-options" id="diffOpts">
+            ${['easy', 'normal', 'hard', 'hell']
+              .map(
+                (d) => `
+              <div class="difficulty-opt ${settings.difficulty === d ? 'active' : ''}" data-d="${d}">
+                <span class="diff-name">${{ easy: '简单', normal: '普通', hard: '困难', hell: '地狱' }[d]}</span>
+                <span class="diff-desc">${{ easy: '新手友好', normal: '标准对局', hard: '需要技巧', hell: '极限挑战' }[d]}</span>
+              </div>`
+              )
+              .join('')}
+          </div>
+          <div class="switch-row">
+            <span>音效</span>
+            <div class="switch ${settings.sound !== false ? 'on' : ''}" id="swSound"></div>
+          </div>
+          <div class="switch-row">
+            <span>动画</span>
+            <div class="switch ${settings.animation !== false ? 'on' : ''}" id="swAnim"></div>
+          </div>
+          <div class="switch-row">
+            <span>音量</span>
+            <input type="range" id="volRange" min="0" max="1" step="0.1" value="${settings.volume != null ? settings.volume : 0.6}" style="width:140px;">
+          </div>
+        `;
+        const box = ui.modal({
+          title: '游戏设置',
+          content,
+          buttons: [{ text: '保存', type: 'primary' }]
+        });
+
+        setTimeout(() => {
+          const opts = content.querySelectorAll('#diffOpts .difficulty-opt');
+          opts.forEach((o) => {
+            o.addEventListener('click', () => {
+              opts.forEach((x) => x.classList.remove('active'));
+              o.classList.add('active');
+              settings.difficulty = o.dataset.d;
+            });
+          });
+          const swSound = content.querySelector('#swSound');
+          swSound.addEventListener('click', () => {
+            settings.sound = !settings.sound;
+            swSound.classList.toggle('on', settings.sound);
+          });
+          const swAnim = content.querySelector('#swAnim');
+          swAnim.addEventListener('click', () => {
+            settings.animation = !settings.animation;
+            swAnim.classList.toggle('on', settings.animation);
+          });
+        }, 0);
+
+        const saveBtn = box.querySelector('.btn-primary');
+        saveBtn.onclick = () => {
+          const volEl = content.querySelector('#volRange');
+          if (volEl) settings.volume = parseFloat(volEl.value);
+          storage.set('settings', settings);
+          sound.setEnabled(settings.sound !== false);
+          if (sound.setVolume) sound.setVolume(settings.volume != null ? settings.volume : 0.6);
+          ui.toast('设置已保存');
+          box.parentElement.classList.add('fade-out');
+          setTimeout(() => box.parentElement.remove(), 250);
+        };
+      }
+
+      function init() {
+        loadPlayerInfo();
+        loadStats();
+        loadHistory();
+
+        document.getElementById('entryDoudizhu').addEventListener('click', () => {
+          sound.playClick();
+          window.location.href = 'doudizhu.html';
+        });
+        document.getElementById('entryGuandan').addEventListener('click', () => {
+          sound.playClick();
+          window.location.href = 'guandan.html';
+        });
+        document.getElementById('entryChallenge').addEventListener('click', () => {
+          sound.playClick();
+          window.location.href = 'challenge.html';
+        });
+        document.getElementById('settingsBtn').addEventListener('click', () => {
+          sound.playClick();
+          openSettings();
+        });
+        document.getElementById('statsBtn').addEventListener('click', openStats);
+        document.getElementById('replayBtn').addEventListener('click', () => {
+          sound.playClick();
+          window.location.href = 'replay.html';
+        });
+        document.getElementById('achBtn').addEventListener('click', openAchievements);
+        document.getElementById('themeBtn').addEventListener('click', cycleTheme);
+
+        const settings = storage.get('settings');
+        if (settings) {
+          sound.setEnabled(settings.sound !== false);
+          if (sound.setVolume) sound.setVolume(settings.volume != null ? settings.volume : 0.6);
+        }
+
+        if (window.Utils.isDebug()) {
+          console.log('%c[HappyCard] 调试模式', 'color:#0d8a4e;font-size:16px;font-weight:bold');
+        }
+      }
+
+      document.addEventListener('DOMContentLoaded', init);
+    })();
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>

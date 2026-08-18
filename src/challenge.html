@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="theme-color" content="#0a6e3e" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.json" />
+  <title>残局挑战 - HappyCard</title>
+  <link rel="stylesheet" href="css/reset.css" />
+  <link rel="stylesheet" href="css/variables.css" />
+  <link rel="stylesheet" href="css/cards.css" />
+  <link rel="stylesheet" href="css/animations.css" />
+  <link rel="stylesheet" href="css/hall.css" />
+  <link rel="stylesheet" href="css/doudizhu.css" />
+  <link rel="stylesheet" href="css/mobile.css" />
+  <script>
+    (function(){try{var t=localStorage.getItem('happycard_theme');if(t){t=JSON.parse(t);if(t)document.documentElement.setAttribute('data-theme',t);}}catch(e){}})();
+  </script>
+  <style>
+    .challenge-list { padding: 20px; max-width: 700px; margin: 0 auto; }
+    .challenge-item {
+      background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.12);
+      border-radius: 12px; padding: 16px 20px; margin-bottom: 12px; cursor: pointer;
+      transition: all 0.2s; display: flex; align-items: center; gap: 16px;
+    }
+    .challenge-item:hover { background: rgba(255,210,74,0.1); border-color: var(--color-gold); transform: translateX(4px); }
+    .challenge-item.solved { border-color: #4caf50; background: rgba(76,175,80,0.1); }
+    .ch-num { font-size: 28px; font-weight: 900; color: var(--color-gold); min-width: 50px; }
+    .ch-info h3 { font-size: 17px; color: #fff; margin-bottom: 4px; }
+    .ch-info p { font-size: 13px; color: rgba(255,255,255,0.65); line-height: 1.5; }
+    .ch-badge { margin-left: auto; font-size: 20px; }
+    .ch-back { position: absolute; top: 12px; left: 16px; z-index: 20; }
+    .challenge-title { text-align: center; padding: 16px; }
+    .challenge-title h2 { color: var(--color-gold); font-size: 20px; }
+    .challenge-title p { color: rgba(255,255,255,0.7); font-size: 13px; margin-top: 4px; }
+    .landlord-badge-challenge { background: linear-gradient(135deg, #f7d046, #e0a81c); color: #5a3a00; font-size: 10px; font-weight: bold; padding: 2px 6px; border-radius: 8px; border: 1px solid #fff; position: absolute; top: -8px; right: -8px; }
+  </style>
+</head>
+<body>
+  <div id="app">
+    <!-- 关卡列表 -->
+    <div class="ddz-container" id="listView">
+      <div class="ch-back">
+        <button class="btn btn-gray btn-press" onclick="window.location.href='index.html'">← 返回</button>
+      </div>
+      <div style="padding-top:60px;">
+        <div class="challenge-title">
+          <h2>🏆 残局挑战</h2>
+          <p>破解经典残局，考验你的牌技！你永远是地主（下方），先手出牌。</p>
+        </div>
+        <div class="challenge-list" id="challengeList"></div>
+      </div>
+    </div>
+
+    <!-- 游戏视图 -->
+    <div class="ddz-container" id="gameView" style="display:none;">
+      <div class="game-topbar">
+        <button class="btn btn-gray btn-press" id="backToList" style="font-size:13px;padding:6px 14px;">← 关卡</button>
+        <div class="game-title" id="chTitle">残局挑战</div>
+        <div class="game-info"></div>
+      </div>
+
+      <!-- 左侧对手 -->
+      <div class="player-seat left">
+        <div class="seat-info seat-left" id="seat1">
+          <div class="seat-avatar">🤖</div>
+          <div>
+            <div class="seat-name">农民A</div>
+            <div class="seat-card-count" id="count1">0张</div>
+          </div>
+        </div>
+        <div class="opponent-hand" id="hand1"></div>
+      </div>
+
+      <!-- 右侧对手 -->
+      <div class="player-seat right">
+        <div class="seat-info seat-right" id="seat2">
+          <div class="seat-avatar">🤖</div>
+          <div>
+            <div class="seat-name">农民B</div>
+            <div class="seat-card-count" id="count2">0张</div>
+          </div>
+        </div>
+        <div class="opponent-hand" id="hand2"></div>
+      </div>
+
+      <!-- 出牌区 -->
+      <div class="play-area">
+        <div class="play-slot" id="play2"></div>
+        <div class="play-slot" id="play1"></div>
+        <div class="play-slot" id="play0"></div>
+      </div>
+
+      <!-- 底部玩家 -->
+      <div class="player-seat bottom">
+        <div class="seat-info" id="seat0">
+          <div class="seat-avatar">😎</div>
+          <div>
+            <div class="seat-name">我（地主）<span class="landlord-badge-challenge">地主</span></div>
+            <div class="seat-card-count" id="count0">0张</div>
+          </div>
+        </div>
+        <div class="hand-area">
+          <div class="hand-cards" id="myHand"></div>
+        </div>
+      </div>
+
+      <!-- 操作栏 -->
+      <div class="action-bar">
+        <button class="action-btn hint btn-press" id="hintBtn">提示</button>
+        <button class="action-btn play btn-press" id="playBtn">出牌</button>
+        <button class="action-btn pass btn-press" id="passBtn">不出</button>
+      </div>
+
+      <!-- 工具栏 -->
+      <div style="position:absolute;bottom:16px;left:80px;display:flex;gap:8px;z-index:10;">
+        <button class="btn btn-gray btn-press" id="sortBtn" style="padding:6px 14px;font-size:13px;">排序</button>
+        <button class="btn btn-gray btn-press" id="clearSelBtn" style="padding:6px 14px;font-size:13px;">取消选中</button>
+        <button class="btn btn-gray btn-press" id="restartChBtn" style="padding:6px 14px;font-size:13px;">重来</button>
+      </div>
+
+      <!-- 结算 -->
+      <div class="result-overlay" id="resultOverlay" style="display:none;">
+        <div class="result-panel">
+          <div class="result-title" id="resultTitle">胜利！</div>
+          <div class="result-subtitle" id="resultSubtitle"></div>
+          <div class="result-detail" id="resultDetail"></div>
+          <div class="result-actions">
+            <button class="btn btn-primary btn-press" id="nextChBtn">下一关</button>
+            <button class="btn btn-gray btn-press" id="retryBtn">再来一次</button>
+            <button class="btn btn-gray btn-press" id="listBtn">返回列表</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 脚本 -->
+  <script src="js/data/constants.js"></script>
+  <script src="js/data/config.js"></script>
+  <script src="js/data/challenges.js"></script>
+  <script src="js/utils/utils.js"></script>
+  <script src="js/utils/storage.js"></script>
+  <script src="js/core/EventBus.js"></script>
+  <script src="js/core/Card.js"></script>
+  <script src="js/core/Deck.js"></script>
+  <script src="js/core/Hand.js"></script>
+  <script src="js/rules/DoudizhuRule.js"></script>
+  <script src="js/ui/Renderer.js"></script>
+  <script src="js/ui/CardRenderer.js"></script>
+  <script src="js/ui/Animation.js"></script>
+  <script src="js/ui/SoundManager.js"></script>
+  <script src="js/ui/UIManager.js"></script>
+  <script src="js/ui/DebugPanel.js"></script>
+  <script src="js/ai/CardCounter.js"></script>
+  <script src="js/ai/HandEvaluator.js"></script>
+  <script src="js/ai/DoudizhuAI.js"></script>
+
+  <script>
+    class ChallengePage {
+      constructor() {
+        this.cardRenderer = new CardRenderer();
+        this.game = null;
+        this.currentChallenge = null;
+        this.solved = storage.get('challenges_solved') || [];
+        this._renderList();
+
+        document.getElementById('backToList').onclick = () => this._showList();
+        document.getElementById('sortBtn').onclick = () => {
+          if (this.game) { this.game.hands[0].sort(); this._renderMyHand(); }
+        };
+        document.getElementById('clearSelBtn').onclick = () => {
+          if (this.game) { this.game.hands[0].clearSelection(); this._renderMyHand(); }
+        };
+        document.getElementById('playBtn').onclick = () => this._playerPlay();
+        document.getElementById('passBtn').onclick = () => this._playerPass();
+        document.getElementById('hintBtn').onclick = () => this._playerHint();
+        document.getElementById('restartChBtn').onclick = () => this._startChallenge(this.currentChallenge);
+        document.getElementById('retryBtn').onclick = () => {
+          document.getElementById('resultOverlay').style.display = 'none';
+          this._startChallenge(this.currentChallenge);
+        };
+        document.getElementById('listBtn').onclick = () => {
+          document.getElementById('resultOverlay').style.display = 'none';
+          this._showList();
+        };
+        document.getElementById('nextChBtn').onclick = () => {
+          document.getElementById('resultOverlay').style.display = 'none';
+          const next = CHALLENGES.find(c => c.id === this.currentChallenge.id + 1);
+          if (next) this._startChallenge(next);
+          else this._showList();
+        };
+      }
+
+      _renderList() {
+        const list = document.getElementById('challengeList');
+        list.innerHTML = '';
+        CHALLENGES.forEach(ch => {
+          const solved = this.solved.includes(ch.id);
+          const div = document.createElement('div');
+          div.className = 'challenge-item' + (solved ? ' solved' : '');
+          div.innerHTML = `
+            <div class="ch-num">${ch.id}</div>
+            <div class="ch-info">
+              <h3>${ch.name}</h3>
+              <p>${ch.desc}</p>
+            </div>
+            <div class="ch-badge">${solved ? '✅' : '▶️'}</div>
+          `;
+          div.onclick = () => { sound.playClick(); this._startChallenge(ch); };
+          list.appendChild(div);
+        });
+      }
+
+      _showList() {
+        document.getElementById('gameView').style.display = 'none';
+        document.getElementById('listView').style.display = '';
+        this._renderList();
+      }
+
+      _startChallenge(ch) {
+        this.currentChallenge = ch;
+        document.getElementById('listView').style.display = 'none';
+        document.getElementById('gameView').style.display = '';
+        document.getElementById('chTitle').textContent = ch.name;
+
+        // 创建一个简化的游戏对象
+        this.game = {
+          hands: [
+            new Hand(makeCards(ch.myCards)),
+            new Hand(makeCards(ch.ai1Cards)),
+            new Hand(makeCards(ch.ai2Cards))
+          ],
+          currentPlayer: 0,
+          landlord: 0,
+          lastPlay: null,
+          passCount: 0,
+          state: Constants.GameState.PLAYING,
+          players: [
+            { id: 0, name: '我', isAI: false, role: 'landlord' },
+            { id: 1, name: '农民A', isAI: true, role: 'farmer' },
+            { id: 2, name: '农民B', isAI: true, role: 'farmer' }
+          ],
+          cardCounter: new CardCounter(1, 3),
+          ai: new DoudizhuAI(new CardCounter(1, 3)),
+          multiplier: 1,
+          eventBus: new EventBus(),
+          _logs: []
+        };
+
+        this.game.hands[0].sort();
+        this.game.cardCounter.reset();
+        this.game.cardCounter.setInitialCount(0, this.game.hands[0].cards.length);
+        this.game.cardCounter.setInitialCount(1, this.game.hands[1].cards.length);
+        this.game.cardCounter.setInitialCount(2, this.game.hands[2].cards.length);
+
+        this._renderAll();
+        this._nextTurn();
+
+        if (window.Utils && window.Utils.isDebug() && window.DebugPanel) {
+          this.debugPanel = new DebugPanel(this.game);
+        }
+      }
+
+      _renderAll() {
+        this._renderMyHand();
+        this._renderOpponent(1);
+        this._renderOpponent(2);
+        this._updateCounts();
+        ['play0', 'play1', 'play2'].forEach(id => document.getElementById(id).innerHTML = '');
+      }
+
+      _renderMyHand() {
+        const hand = this.game.hands[0];
+        const container = document.getElementById('myHand');
+        container.innerHTML = '';
+        hand.cards.forEach((card, i) => {
+          const el = this.cardRenderer.createCardEl(card);
+          el.classList.add('btn-press');
+          if (hand.isSelected(card)) el.classList.add('selected');
+          el.addEventListener('click', () => {
+            hand.toggleSelect(card);
+            this._renderMyHand();
+          });
+          container.appendChild(el);
+        });
+      }
+
+      _renderOpponent(idx) {
+        const hand = this.game.hands[idx];
+        const container = document.getElementById('hand' + idx);
+        container.innerHTML = '';
+        for (let i = 0; i < hand.cards.length; i++) {
+          const back = document.createElement('div');
+          back.className = 'card-back';
+          container.appendChild(back);
+        }
+      }
+
+      _updateCounts() {
+        for (let i = 0; i < 3; i++) {
+          const el = document.getElementById('count' + i);
+          if (el) el.textContent = this.game.hands[i].cards.length + '张';
+        }
+      }
+
+      _nextTurn() {
+        if (this._checkWin()) return;
+        const player = this.game.players[this.game.currentPlayer];
+        if (player.isAI) {
+          setTimeout(() => this._aiPlay(), 700 + Math.random() * 800);
+        }
+      }
+
+      _aiPlay() {
+        if (this.game.state !== Constants.GameState.PLAYING) return;
+        const idx = this.game.currentPlayer;
+        const context = {
+          currentPlayer: idx,
+          players: this.game.players,
+          hands: this.game.hands,
+          landlord: this.game.landlord
+        };
+        const chosen = this.game.ai.decidePlay(this.game.hands[idx], this.game.lastPlay, context);
+        if (!chosen) {
+          this._doPass();
+        } else {
+          this._doPlay(chosen);
+        }
+      }
+
+      _doPlay(cards) {
+        const idx = this.game.currentPlayer;
+        const info = DoudizhuRule.judge(cards);
+        this.game.hands[idx].removeCards(cards);
+        this.game.lastPlay = { cards, info, player: idx };
+        this.game.passCount = 0;
+        this.game.cardCounter.observePlay(idx, cards, info);
+        this._showPlayedCards(idx, cards);
+
+        // 音效
+        if (info.type === 'bomb' || info.type === 'rocket') sound.playBomb();
+        else sound.playPlay();
+
+        this._updateCounts();
+        this.game.currentPlayer = (this.game.currentPlayer + 1) % 3;
+        this._nextTurn();
+      }
+
+      _doPass() {
+        const idx = this.game.currentPlayer;
+        this.game.passCount++;
+        this.game.cardCounter.observePass(idx);
+        this._showPlayedCards(idx, null);
+        sound.playPass();
+        if (this.game.passCount >= 2) {
+          this.game.lastPlay = null;
+          this.game.passCount = 0;
+        }
+        this.game.currentPlayer = (this.game.currentPlayer + 1) % 3;
+        this._nextTurn();
+      }
+
+      _showPlayedCards(idx, cards) {
+        const slot = document.getElementById('play' + idx);
+        slot.innerHTML = '';
+        if (!cards) {
+          slot.innerHTML = '<div class="play-label">不出</div>';
+          setTimeout(() => { if (slot.querySelector('.play-label')) slot.innerHTML = ''; }, 1200);
+          return;
+        }
+        cards.forEach(card => {
+          const el = this.cardRenderer.createCardEl(card);
+          slot.appendChild(el);
+        });
+      }
+
+      _playerPlay() {
+        if (this.game.currentPlayer !== 0) return;
+        const hand = this.game.hands[0];
+        const selected = hand.getSelected();
+        if (selected.length === 0) { uiManager.toast('请选择要出的牌'); return; }
+        const info = DoudizhuRule.judge(selected);
+        if (!info.isValid) { uiManager.toast('不是有效的牌型'); return; }
+        if (this.game.lastPlay && this.game.lastPlay.player !== 0) {
+          const cmp = DoudizhuRule.compare(selected, this.game.lastPlay.cards);
+          if (cmp <= 0) { uiManager.toast('压不过上家的牌'); return; }
+        }
+        hand.clearSelection();
+        this._doPlay(selected);
+      }
+
+      _playerPass() {
+        if (this.game.currentPlayer !== 0) return;
+        if (!this.game.lastPlay || this.game.lastPlay.player === 0) {
+          uiManager.toast('您先出，不能不出');
+          return;
+        }
+        this._doPass();
+      }
+
+      _playerHint() {
+        if (this.game.currentPlayer !== 0) return;
+        const hand = this.game.hands[0];
+        hand.clearSelection();
+        let hints;
+        if (!this.game.lastPlay || this.game.lastPlay.player === 0) {
+          hints = DoudizhuRule.findHints(hand.cards);
+        } else {
+          hints = DoudizhuRule.findHints(hand.cards, this.game.lastPlay.cards);
+        }
+        if (hints && hints.length > 0) {
+          hints[0].forEach(c => hand.toggleSelect(c));
+          this._renderMyHand();
+        } else {
+          uiManager.toast('没有可出的牌，请选择不出');
+        }
+      }
+
+      _checkWin() {
+        for (let i = 0; i < 3; i++) {
+          if (this.game.hands[i].cards.length === 0) {
+            this._finishGame(i);
+            return true;
+          }
+        }
+        return false;
+      }
+
+      _finishGame(winnerIdx) {
+        this.game.state = Constants.GameState.FINISHED;
+        const playerWon = winnerIdx === 0;
+        sound.playWin();
+
+        const overlay = document.getElementById('resultOverlay');
+        document.getElementById('resultTitle').textContent = playerWon ? '🎉 挑战成功！' : '😢 挑战失败';
+        document.getElementById('resultSubtitle').textContent = playerWon
+          ? '恭喜你破解了此残局！'
+          : '别灰心，再试一次吧！';
+
+        let detail = `获胜者：${this.game.players[winnerIdx].name}\n`;
+        detail += `剩余牌数 - 我:${this.game.hands[0].cards.length} 农民A:${this.game.hands[1].cards.length} 农民B:${this.game.hands[2].cards.length}`;
+        document.getElementById('resultDetail').innerHTML = detail.replace(/\n/g, '<br>');
+
+        // 显示/隐藏下一关按钮
+        const nextBtn = document.getElementById('nextChBtn');
+        const nextCh = CHALLENGES.find(c => c.id === this.currentChallenge.id + 1);
+        nextBtn.style.display = (playerWon && nextCh) ? '' : 'none';
+
+        if (playerWon && !this.solved.includes(this.currentChallenge.id)) {
+          this.solved.push(this.currentChallenge.id);
+          storage.set('challenges_solved', this.solved);
+        }
+
+        overlay.style.display = 'flex';
+      }
+    }
+
+    document.addEventListener('DOMContentLoaded', () => {
+      window.page = new ChallengePage();
+    });
+  </script>
+  <script>
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => { navigator.serviceWorker.register('sw.js').catch(() => {}); });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,126 @@
+/* CSS 变量定义 - 颜色、尺寸、动画时长 */
+:root {
+  /* 主色调 - 欢乐斗地主绿 */
+  --color-primary: #0a6e3e;
+  --color-primary-light: #0d8a4e;
+  --color-primary-dark: #075a32;
+  --color-primary-gradient: linear-gradient(135deg, #0a6e3e 0%, #0d8a4e 50%, #0a6e3e 100%);
+
+  /* 桌布 */
+  --color-felt: #0b6b3a;
+  --color-felt-dark: #084d2a;
+  --color-felt-light: #128a4e;
+
+  /* 扑克牌 */
+  --card-bg: #ffffff;
+  --card-bg-back: linear-gradient(135deg, #c0392b 0%, #8e2420 100%);
+  --card-red: #d4242c;
+  --card-black: #1a1a1a;
+  --card-border: #b0b0b0;
+  --card-shadow: 0 2px 6px rgba(0, 0, 0, 0.35);
+  --card-shadow-hover: 0 6px 16px rgba(0, 0, 0, 0.45);
+  --card-radius: 6px;
+
+  /* 扑克牌尺寸 */
+  --card-width: 60px;
+  --card-height: 84px;
+  --card-width-sm: 44px;
+  --card-height-sm: 62px;
+  --card-width-lg: 72px;
+  --card-height-lg: 100px;
+  --card-overlap: 24px;
+
+  /* 功能色 */
+  --color-gold: #ffd24a;
+  --color-gold-dark: #e0a81c;
+  --color-red: #e74c3c;
+  --color-blue: #3498db;
+  --color-orange: #f39c12;
+  --color-purple: #9b59b6;
+
+  /* 文本 */
+  --text-primary: #ffffff;
+  --text-secondary: rgba(255, 255, 255, 0.75);
+  --text-disabled: rgba(255, 255, 255, 0.4);
+  --text-shadow: 0 1px 3px rgba(0, 0, 0, 0.6);
+
+  /* 按钮 */
+  --btn-primary-bg: linear-gradient(180deg, #f7d046 0%, #e0a81c 100%);
+  --btn-primary-color: #5a3a00;
+  --btn-danger-bg: linear-gradient(180deg, #ef5350 0%, #c62828 100%);
+  --btn-success-bg: linear-gradient(180deg, #4caf50 0%, #2e7d32 100%);
+  --btn-gray-bg: linear-gradient(180deg, #7f8c8d 0%, #566566 100%);
+  --btn-radius: 8px;
+  --btn-shadow: 0 3px 0 rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.3);
+
+  /* 动画时长 */
+  --anim-fast: 150ms;
+  --anim-normal: 250ms;
+  --anim-slow: 400ms;
+  --anim-deal: 1500ms;
+  --anim-card-fly: 200ms;
+  --anim-boom: 600ms;
+
+  /* 布局 */
+  --player-area-height: 140px;
+  --info-bar-height: 50px;
+  --z-card: 10;
+  --z-card-selected: 20;
+  --z-modal: 100;
+  --z-toast: 200;
+  --z-animation: 150;
+}
+
+/* ===== 皇家紫主题 ===== */
+[data-theme="royal"] {
+  --color-primary: #5b3a8c;
+  --color-primary-light: #7b5ab8;
+  --color-primary-dark: #3e2560;
+  --color-primary-gradient: linear-gradient(135deg, #5b3a8c 0%, #7b5ab8 50%, #5b3a8c 100%);
+  --color-felt: #3a2060;
+  --color-felt-dark: #281545;
+  --color-felt-light: #4a3078;
+  --color-gold: #ffc850;
+  --color-gold-dark: #d4982a;
+}
+
+/* ===== 海洋蓝主题 ===== */
+[data-theme="ocean"] {
+  --color-primary: #1a5276;
+  --color-primary-light: #2471a3;
+  --color-primary-dark: #0e3652;
+  --color-primary-gradient: linear-gradient(135deg, #1a5276 0%, #2471a3 50%, #1a5276 100%);
+  --color-felt: #154360;
+  --color-felt-dark: #0b2d44;
+  --color-felt-light: #1f5a80;
+  --color-gold: #5dade2;
+  --color-gold-dark: #2e86c1;
+}
+
+/* ===== 暗夜黑主题 ===== */
+[data-theme="night"] {
+  --color-primary: #2c3e50;
+  --color-primary-light: #34495e;
+  --color-primary-dark: #1a252f;
+  --color-primary-gradient: linear-gradient(135deg, #2c3e50 0%, #34495e 50%, #2c3e50 100%);
+  --color-felt: #1c2833;
+  --color-felt-dark: #0e1418;
+  --color-felt-light: #2c3e50;
+  --color-gold: #f39c12;
+  --color-gold-dark: #d68910;
+  --card-bg: #f0f0f0;
+  --card-bg-back: linear-gradient(135deg, #1a252f 0%, #2c3e50 100%);
+}
+
+/* ===== 喜庆红主题 ===== */
+[data-theme="festive"] {
+  --color-primary: #922b21;
+  --color-primary-light: #c0392b;
+  --color-primary-dark: #641e16;
+  --color-primary-gradient: linear-gradient(135deg, #922b21 0%, #c0392b 50%, #922b21 100%);
+  --color-felt: #7b241c;
+  --color-felt-dark: #591c16;
+  --color-felt-light: #a93226;
+  --color-gold: #ffd700;
+  --color-gold-dark: #daa520;
+}

@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>🤖 AI 测试台 - HappyCard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+      background: #0f1729;
+      color: #e8eaf0;
+      margin: 0;
+      padding: 0 0 60px;
+    }
+    a { color: #7eb6ff; text-decoration: none; }
+    a:hover { text-decoration: underline; }
+
+    .topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 16px 28px;
+      background: linear-gradient(90deg, #14203c, #0f1729);
+      border-bottom: 1px solid #1f2d4d;
+    }
+    .topbar h1 { margin: 0; font-size: 22px; color: #ffd24a; }
+    .topbar .back { font-size: 14px; }
+
+    .tabs {
+      display: flex;
+      gap: 4px;
+      padding: 14px 28px 0;
+      border-bottom: 1px solid #1f2d4d;
+    }
+    .tab-btn {
+      padding: 10px 22px;
+      font-size: 15px;
+      background: transparent;
+      color: #9aa7c7;
+      border: none;
+      border-bottom: 3px solid transparent;
+      cursor: pointer;
+      font-weight: bold;
+      transition: all .15s;
+    }
+    .tab-btn:hover { color: #fff; background: rgba(255,255,255,0.04); }
+    .tab-btn.active { color: #ffd24a; border-bottom-color: #ffd24a; }
+
+    .panel { display: none; padding: 24px 28px; }
+    .panel.active { display: block; }
+
+    .control-bar {
+      display: flex;
+      gap: 12px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 20px;
+    }
+    .control-bar label { color: #9aa7c7; font-size: 14px; }
+    select, button {
+      font-size: 14px;
+      border-radius: 6px;
+      border: 1px solid #2a3a5e;
+      background: #1a2440;
+      color: #fff;
+      padding: 8px 14px;
+      cursor: pointer;
+      font-family: inherit;
+    }
+    select:hover, button:hover { border-color: #7eb6ff; }
+    button.primary { background: #0d8a4e; border-color: #0d8a4e; font-weight: bold; }
+    button.primary:hover { background: #0f9b58; }
+    button.danger { background: #8a2a2a; border-color: #8a2a2a; }
+    button.danger:hover { background: #a33; }
+    button:disabled { opacity: .5; cursor: not-allowed; }
+
+    .progress-wrap {
+      display: none;
+      margin-bottom: 22px;
+    }
+    .progress-wrap.show { display: block; }
+    .progress-label {
+      display: flex;
+      justify-content: space-between;
+      font-size: 13px;
+      color: #9aa7c7;
+      margin-bottom: 6px;
+    }
+    .progress-bar {
+      height: 14px;
+      background: #1a2440;
+      border-radius: 7px;
+      overflow: hidden;
+      border: 1px solid #2a3a5e;
+    }
+    .progress-fill {
+      height: 100%;
+      width: 0%;
+      background: linear-gradient(90deg, #0d8a4e, #36c275);
+      border-radius: 7px;
+      transition: width .15s;
+    }
+
+    .stat-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+      gap: 14px;
+      margin-bottom: 26px;
+    }
+    .stat-card {
+      background: linear-gradient(160deg, #1a2748, #141d36);
+      border: 1px solid #243358;
+      border-radius: 10px;
+      padding: 16px;
+      text-align: center;
+    }
+    .stat-card .label { font-size: 13px; color: #9aa7c7; margin-bottom: 8px; }
+    .stat-card .value { font-size: 30px; font-weight: bold; line-height: 1.1; }
+    .stat-card .value.green { color: #4caf50; }
+    .stat-card .value.red { color: #ef5350; }
+    .stat-card .value.gold { color: #ffd24a; }
+    .stat-card .value.blue { color: #7eb6ff; }
+    .stat-card .value.orange { color: #ff9d4a; }
+    .stat-card .value.purple { color: #c084fc; }
+
+    .section-title {
+      font-size: 16px;
+      color: #7eb6ff;
+      border-left: 4px solid #7eb6ff;
+      padding-left: 10px;
+      margin: 22px 0 12px;
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      background: rgba(255,255,255,0.03);
+      border-radius: 8px;
+      overflow: hidden;
+      font-size: 13px;
+    }
+    th, td {
+      padding: 9px 12px;
+      text-align: center;
+      border-bottom: 1px solid #1f2d4d;
+    }
+    th { background: #1a2748; color: #ffd24a; font-weight: bold; }
+    tr:hover td { background: rgba(126,182,255,0.06); }
+    td.win { color: #4caf50; font-weight: bold; }
+    td.lose { color: #ef5350; }
+
+    .eval-toolbar { display: flex; gap: 12px; align-items: center; flex-wrap: wrap; margin-bottom: 18px; }
+    .mode-switch { display: flex; gap: 6px; }
+    .mode-switch button { padding: 8px 16px; }
+    .mode-switch button.active { background: #2a4a8a; border-color: #7eb6ff; }
+
+    .hand-area {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid #243358;
+      border-radius: 10px;
+      padding: 18px;
+      margin-bottom: 18px;
+      min-height: 90px;
+    }
+    .hand-cards { display: flex; flex-wrap: wrap; gap: 6px; }
+    .playing-card {
+      width: 46px;
+      height: 64px;
+      border-radius: 6px;
+      background: #fff;
+      color: #1a1a1a;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 16px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.4);
+      position: relative;
+    }
+    .playing-card.red { color: #d32f2f; }
+    .playing-card.joker { font-size: 12px; writing-mode: vertical-rl; letter-spacing: 2px; }
+    .playing-card .corner { position: absolute; top: 3px; left: 4px; font-size: 11px; line-height: 1; }
+    .playing-card.wild { outline: 2px solid #ffd24a; box-shadow: 0 0 8px rgba(255,210,74,0.6); }
+
+    .score-block {
+      display: flex;
+      align-items: center;
+      gap: 24px;
+      background: linear-gradient(160deg, #1a2748, #141d36);
+      border: 1px solid #243358;
+      border-radius: 10px;
+      padding: 18px 22px;
+      margin-bottom: 18px;
+      flex-wrap: wrap;
+    }
+    .score-big { font-size: 48px; font-weight: bold; line-height: 1; }
+    .score-big.s-high { color: #4caf50; }
+    .score-big.s-mid { color: #ffd24a; }
+    .score-big.s-low { color: #ef5350; }
+    .score-meta { color: #9aa7c7; font-size: 14px; line-height: 1.8; }
+    .score-meta b { color: #e8eaf0; }
+
+    .breakdown { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px,1fr)); gap: 10px; }
+    .bd-item {
+      background: rgba(255,255,255,0.04);
+      border-radius: 6px;
+      padding: 10px 12px;
+      text-align: center;
+    }
+    .bd-item .n { font-size: 22px; font-weight: bold; color: #7eb6ff; }
+    .bd-item .t { font-size: 12px; color: #9aa7c7; margin-top: 3px; }
+
+    .hint { color: #9aa7c7; font-size: 13px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <a class="back" href="../src/index.html">← 返回大厅</a>
+    <h1>🤖 AI 测试台</h1>
+    <span style="width:80px"></span>
+  </div>
+
+  <div class="tabs">
+    <button class="tab-btn active" data-tab="ddz">斗地主 AI 模拟</button>
+    <button class="tab-btn" data-tab="gd">掼蛋 AI 模拟</button>
+    <button class="tab-btn" data-tab="eval">手牌评估器</button>
+  </div>
+
+  <!-- 斗地主 AI 模拟 -->
+  <section id="panel-ddz" class="panel active">
+    <div class="control-bar">
+      <label>模拟局数：</label>
+      <select id="ddz-count">
+        <option value="10">10 局</option>
+        <option value="50" selected>50 局</option>
+        <option value="100">100 局</option>
+        <option value="500">500 局</option>
+      </select>
+      <button class="primary" id="ddz-start">▶ 开始模拟</button>
+      <button class="danger" id="ddz-stop" disabled>■ 停止</button>
+    </div>
+
+    <div class="progress-wrap" id="ddz-progress-wrap">
+      <div class="progress-label">
+        <span id="ddz-progress-text">准备中...</span>
+        <span id="ddz-progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="ddz-progress-fill"></div></div>
+    </div>
+
+    <div class="stat-grid" id="ddz-stats">
+      <div class="stat-card"><div class="label">总局数</div><div class="value blue" id="ddz-total">0</div></div>
+      <div class="stat-card"><div class="label">地主胜</div><div class="value red" id="ddz-lw">0</div></div>
+      <div class="stat-card"><div class="label">农民胜</div><div class="value green" id="ddz-fw">0</div></div>
+      <div class="stat-card"><div class="label">地主胜率</div><div class="value gold" id="ddz-rate">0%</div></div>
+      <div class="stat-card"><div class="label">平均倍数</div><div class="value orange" id="ddz-mult">0</div></div>
+      <div class="stat-card"><div class="label">炸弹次数</div><div class="value purple" id="ddz-bombs">0</div></div>
+      <div class="stat-card"><div class="label">王炸次数</div><div class="value gold" id="ddz-rockets">0</div></div>
+      <div class="stat-card"><div class="label">平均出牌数</div><div class="value blue" id="ddz-avgplay">0</div></div>
+    </div>
+
+    <div class="section-title">最近 10 局结果</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>胜者</th><th>地主位置</th><th>倍数</th><th>炸弹</th><th>王炸</th><th>出牌数</th></tr>
+      </thead>
+      <tbody id="ddz-table"></tbody>
+    </table>
+  </section>
+
+  <!-- 掼蛋 AI 模拟 -->
+  <section id="panel-gd" class="panel">
+    <div class="control-bar">
+      <label>模拟局数：</label>
+      <select id="gd-count">
+        <option value="10" selected>10 局</option>
+        <option value="50">50 局</option>
+        <option value="100">100 局</option>
+      </select>
+      <button class="primary" id="gd-start">▶ 开始模拟</button>
+      <button class="danger" id="gd-stop" disabled>■ 停止</button>
+    </div>
+
+    <div class="progress-wrap" id="gd-progress-wrap">
+      <div class="progress-label">
+        <span id="gd-progress-text">准备中...</span>
+        <span id="gd-progress-pct">0%</span>
+      </div>
+      <div class="progress-bar"><div class="progress-fill" id="gd-progress-fill"></div></div>
+    </div>
+
+    <div class="stat-grid" id="gd-stats">
+      <div class="stat-card"><div class="label">总局数</div><div class="value blue" id="gd-total">0</div></div>
+      <div class="stat-card"><div class="label">我方胜</div><div class="value green" id="gd-mw">0</div></div>
+      <div class="stat-card"><div class="label">对方胜</div><div class="value red" id="gd-ow">0</div></div>
+      <div class="stat-card"><div class="label">我方胜率</div><div class="value gold" id="gd-rate">0%</div></div>
+      <div class="stat-card"><div class="label">平均升级数</div><div class="value orange" id="gd-up">0</div></div>
+      <div class="stat-card"><div class="label">炸弹次数</div><div class="value purple" id="gd-bombs">0</div></div>
+      <div class="stat-card"><div class="label">同花顺次数</div><div class="value blue" id="gd-sf">0</div></div>
+      <div class="stat-card"><div class="label">天王炸次数</div><div class="value gold" id="gd-sky">0</div></div>
+    </div>
+
+    <div class="section-title">最近 10 局结果</div>
+    <table>
+      <thead>
+        <tr><th>#</th><th>胜方</th><th>名次（头游→末游）</th><th>升级</th><th>炸弹</th><th>同花顺</th><th>天王炸</th></tr>
+      </thead>
+      <tbody id="gd-table"></tbody>
+    </table>
+  </section>
+
+  <!-- 手牌评估器 -->
+  <section id="panel-eval" class="panel">
+    <div class="eval-toolbar">
+      <div class="mode-switch">
+        <button class="active" data-mode="ddz">斗地主（17张）</button>
+        <button data-mode="gd">掼蛋（27张）</button>
+      </div>
+      <label id="gd-level-wrap" style="display:none">当前等级：
+        <select id="gd-level"></select>
+      </label>
+      <button class="primary" id="eval-gen">🔄 重新生成</button>
+    </div>
+
+    <div class="score-block">
+      <div class="score-big s-mid" id="eval-score">--</div>
+      <div class="score-meta" id="eval-meta">点击"重新生成"获取随机手牌</div>
+    </div>
+
+    <div class="section-title">手牌</div>
+    <div class="hand-area"><div class="hand-cards" id="eval-hand"></div></div>
+
+    <div class="section-title">牌型分解</div>
+    <div class="breakdown" id="eval-breakdown"></div>
+  </section>
+
+  <script>
+    window.CardRenderer = class { constructor() {} destroy() {} };
+  </script>
+  <script src="../src/js/data/constants.js"></script>
+  <script src="../src/js/data/config.js"></script>
+  <script src="../src/js/utils/utils.js"></script>
+  <script src="../src/js/utils/storage.js"></script>
+  <script src="../src/js/core/EventBus.js"></script>
+  <script src="../src/js/core/Card.js"></script>
+  <script src="../src/js/core/Deck.js"></script>
+  <script src="../src/js/core/Hand.js"></script>
+  <script src="../src/js/rules/DoudizhuRule.js"></script>
+  <script src="../src/js/rules/GuandanRule.js"></script>
+  <script src="../src/js/ai/CardCounter.js"></script>
+  <script src="../src/js/ai/HandEvaluator.js"></script>
+  <script src="../src/js/ai/DoudizhuAI.js"></script>
+  <script src="../src/js/ai/GuandanAI.js"></script>
+  <script src="../src/js/game/GameBase.js"></script>
+  <script src="../src/js/game/DoudizhuGame.js"></script>
+  <script src="../src/js/game/GuandanGame.js"></script>
+
+  <script>
+  (function () {
+    const $ = (id) => document.getElementById(id);
+
+    document.querySelectorAll('.tab-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+        document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+        btn.classList.add('active');
+        $('panel-' + btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    let _origSetTimeout = null;
+    function installFastTimers() {
+      if (_origSetTimeout) return;
+      _origSetTimeout = window.setTimeout;
+      window.setTimeout = function (fn, _delay) {
+        return _origSetTimeout(fn, 0);
+      };
+    }
+    function restoreTimers() {
+      if (_origSetTimeout) {
+        window.setTimeout = _origSetTimeout;
+        _origSetTimeout = null;
+      }
+    }
+
+    function makeGame(GameClass, callbacks) {
+      const game = new GameClass(Object.assign({
+        onStateChange: () => {},
+        onPlayCard: () => {},
+        onPass: () => {},
+        onBid: () => {},
+        onGameOver: () => {},
+        onLevelChange: () => {},
+        onMatchOver: () => {},
+        onTribute: () => {},
+        onMessage: () => {}
+      }, callbacks));
+      game.players.forEach(p => { p.isAI = true; });
+      return game;
+    }
+
+    function runSimulation(opts) {
+      const total = opts.total;
+      let done = 0;
+      let running = true;
+      installFastTimers();
+      if (opts.onStart) opts.onStart();
+
+      function step() {
+        if (!running) { opts.onStop(); restoreTimers(); return; }
+
+        const round = { bombs: 0, rockets: 0, sf: 0, sky: 0, plays: 0 };
+        const game = makeGame(opts.GameClass, {
+          onPlayCard: (idx, cards, info) => {
+            round.plays++;
+            if (info.type === CardType.BOMB) round.bombs++;
+            if (info.type === CardType.ROCKET) round.rockets++;
+            if (info.type === CardType.STRAIGHT_FLUSH) round.sf++;
+            if (info.type === CardType.SKY_BOMB) round.sky++;
+          },
+          onGameOver: (result) => {
+            done++;
+            opts.onRound(done, total, result, round);
+            if (done >= total) {
+              running = false;
+              opts.onFinish();
+              restoreTimers();
+            } else {
+              _origSetTimeout ? _origSetTimeout(step, 0) : step();
+            }
+          }
+        });
+        game.startNewGame();
+      }
+      step();
+
+      return function stop() { running = false; };
+    }
+
+    /* ============== 斗地主模拟 ============== */
+    const ddz = {
+      total: 0, lw: 0, fw: 0, multSum: 0,
+      bombs: 0, rockets: 0, playSum: 0, recent: []
+    };
+    let ddzStop = null;
+
+    function resetDdz() {
+      ddz.total = ddz.lw = ddz.fw = ddz.multSum = 0;
+      ddz.bombs = ddz.rockets = ddz.playSum = 0;
+      ddz.recent = [];
+      renderDdz();
+    }
+
+    function renderDdz() {
+      $('ddz-total').textContent = ddz.total;
+      $('ddz-lw').textContent = ddz.lw;
+      $('ddz-fw').textContent = ddz.fw;
+      $('ddz-rate').textContent = ddz.total ? ((ddz.lw / ddz.total) * 100).toFixed(1) + '%' : '0%';
+      $('ddz-mult').textContent = ddz.total ? (ddz.multSum / ddz.total).toFixed(2) : '0';
+      $('ddz-bombs').textContent = ddz.bombs;
+      $('ddz-rockets').textContent = ddz.rockets;
+      $('ddz-avgplay').textContent = ddz.total ? (ddz.playSum / ddz.total).toFixed(1) : '0';
+
+      const tbody = $('ddz-table');
+      tbody.innerHTML = ddz.recent.slice(0, 10).map(r => `
+        <tr>
+          <td>${r.no}</td>
+          <td class="${r.isLandlordWin ? 'lose' : 'win'}">${r.isLandlordWin ? '地主' : '农民'}</td>
+          <td>${['我', '电脑A', '电脑B'][r.landlord]}</td>
+          <td>${r.multiplier}</td>
+          <td>${r.bombs}</td>
+          <td>${r.rockets}</td>
+          <td>${r.plays}</td>
+        </tr>
+      `).join('');
+    }
+
+    $('ddz-start').addEventListener('click', () => {
+      resetDdz();
+      const count = parseInt($('ddz-count').value, 10);
+      $('ddz-start').disabled = true;
+      $('ddz-stop').disabled = false;
+      $('ddz-progress-wrap').classList.add('show');
+
+      ddzStop = runSimulation({
+        GameClass: DoudizhuGame,
+        total: count,
+        onStart: () => {},
+        onRound: (done, total, result, round) => {
+          ddz.total++;
+          if (result.isLandlordWin) ddz.lw++; else ddz.fw++;
+          ddz.multSum += result.multiplier || 0;
+          ddz.bombs += round.bombs;
+          ddz.rockets += round.rockets;
+          ddz.playSum += round.plays;
+          ddz.recent.unshift({
+            no: done,
+            isLandlordWin: result.isLandlordWin,
+            landlord: result.landlord,
+            multiplier: result.multiplier,
+            bombs: round.bombs,
+            rockets: round.rockets,
+            plays: round.plays
+          });
+          const pct = Math.round((done / total) * 100);
+          $('ddz-progress-fill').style.width = pct + '%';
+          $('ddz-progress-pct').textContent = pct + '%';
+          $('ddz-progress-text').textContent = `已完成 ${done} / ${total} 局`;
+          renderDdz();
+        },
+        onFinish: () => {
+          $('ddz-progress-text').textContent = '模拟完成';
+          $('ddz-start').disabled = false;
+          $('ddz-stop').disabled = true;
+          ddzStop = null;
+        },
+        onStop: () => {
+          $('ddz-progress-text').textContent = '已停止';
+          $('ddz-start').disabled = false;
+          $('ddz-stop').disabled = true;
+          ddzStop = null;
+        }
+      });
+    });
+
+    $('ddz-stop').addEventListener('click', () => { if (ddzStop) ddzStop(); });
+
+    /* ============== 掼蛋模拟 ============== */
+    const gd = {
+      total: 0, mw: 0, ow: 0, upSum: 0,
+      bombs: 0, sf: 0, sky: 0, recent: []
+    };
+    let gdStop = null;
+    const GD_NAMES = ['我', '左家', '右家', '对家'];
+
+    function resetGd() {
+      gd.total = gd.mw = gd.ow = gd.upSum = 0;
+      gd.bombs = gd.sf = gd.sky = 0;
+      gd.recent = [];
+      renderGd();
+    }
+
+    function renderGd() {
+      $('gd-total').textContent = gd.total;
+      $('gd-mw').textContent = gd.mw;
+      $('gd-ow').textContent = gd.ow;
+      $('gd-rate').textContent = gd.total ? ((gd.mw / gd.total) * 100).toFixed(1) + '%' : '0%';
+      $('gd-up').textContent = gd.total ? (gd.upSum / gd.total).toFixed(2) : '0';
+      $('gd-bombs').textContent = gd.bombs;
+      $('gd-sf').textContent = gd.sf;
+      $('gd-sky').textContent = gd.sky;
+
+      const tbody = $('gd-table');
+      tbody.innerHTML = gd.recent.slice(0, 10).map(r => {
+        const order = r.placements.map(i => GD_NAMES[i]).join(' → ');
+        return `
+          <tr>
+            <td>${r.no}</td>
+            <td class="${r.winTeam === 0 ? 'win' : 'lose'}">${r.winTeam === 0 ? '我方' : '对方'}</td>
+            <td>${order}</td>
+            <td>${r.upLevel}</td>
+            <td>${r.bombs}</td>
+            <td>${r.sf}</td>
+            <td>${r.sky}</td>
+          </tr>
+        `;
+      }).join('');
+    }
+
+    $('gd-start').addEventListener('click', () => {
+      resetGd();
+      const count = parseInt($('gd-count').value, 10);
+      $('gd-start').disabled = true;
+      $('gd-stop').disabled = false;
+      $('gd-progress-wrap').classList.add('show');
+
+      gdStop = runSimulation({
+        GameClass: GuandanGame,
+        total: count,
+        onRound: (done, total, result, round) => {
+          gd.total++;
+          if (result.winTeam === 0) gd.mw++; else gd.ow++;
+          gd.upSum += result.upLevel || 0;
+          gd.bombs += round.bombs;
+          gd.sf += round.sf;
+          gd.sky += round.sky;
+          gd.recent.unshift({
+            no: done,
+            winTeam: result.winTeam,
+            placements: result.placements,
+            upLevel: result.upLevel,
+            bombs: round.bombs,
+            sf: round.sf,
+            sky: round.sky
+          });
+          const pct = Math.round((done / total) * 100);
+          $('gd-progress-fill').style.width = pct + '%';
+          $('gd-progress-pct').textContent = pct + '%';
+          $('gd-progress-text').textContent = `已完成 ${done} / ${total} 局`;
+          renderGd();
+        },
+        onFinish: () => {
+          $('gd-progress-text').textContent = '模拟完成';
+          $('gd-start').disabled = false;
+          $('gd-stop').disabled = true;
+          gdStop = null;
+        },
+        onStop: () => {
+          $('gd-progress-text').textContent = '已停止';
+          $('gd-start').disabled = false;
+          $('gd-stop').disabled = true;
+          gdStop = null;
+        }
+      });
+    });
+
+    $('gd-stop').addEventListener('click', () => { if (gdStop) gdStop(); });
+
+    /* ============== 手牌评估器 ============== */
+    const GD_LEVELS = [
+      { label: '2', value: 15 }, { label: '3', value: 3 }, { label: '4', value: 4 },
+      { label: '5', value: 5 }, { label: '6', value: 6 }, { label: '7', value: 7 },
+      { label: '8', value: 8 }, { label: '9', value: 9 }, { label: '10', value: 10 },
+      { label: 'J', value: 11 }, { label: 'Q', value: 12 }, { label: 'K', value: 13 },
+      { label: 'A', value: 14 }
+    ];
+    const levelSel = $('gd-level');
+    GD_LEVELS.forEach(l => {
+      const o = document.createElement('option');
+      o.value = l.value; o.textContent = l.label;
+      levelSel.appendChild(o);
+    });
+
+    let evalMode = 'ddz';
+    document.querySelectorAll('.mode-switch button').forEach(b => {
+      b.addEventListener('click', () => {
+        document.querySelectorAll('.mode-switch button').forEach(x => x.classList.remove('active'));
+        b.classList.add('active');
+        evalMode = b.dataset.mode;
+        $('gd-level-wrap').style.display = evalMode === 'gd' ? '' : 'none';
+        generateEval();
+      });
+    });
+    levelSel.addEventListener('change', generateEval);
+    $('eval-gen').addEventListener('click', generateEval);
+
+    function cardColor(c) {
+      if (c.suit === 'heart' || c.suit === 'diamond') return 'red';
+      if (c.isJoker) return c.rank === 'BIG_JOKER' ? 'red' : '';
+      return '';
+    }
+
+    function renderCard(c, isWild) {
+      const div = document.createElement('div');
+      div.className = 'playing-card ' + cardColor(c) + (c.isJoker ? ' joker' : '') + (isWild ? ' wild' : '');
+      if (c.isJoker) {
+        div.textContent = c.display || (c.rank === 'BIG_JOKER' ? '大王' : '小王');
+      } else {
+        const sym = c.suitSymbol || { spade: '♠', heart: '♥', diamond: '♦', club: '♣' }[c.suit];
+        div.innerHTML = `<span class="corner">${c.rank}</span><span style="font-size:20px">${sym}</span>`;
+      }
+      return div;
+    }
+
+    function renderBreakdown(analysis, minTurns, isGuandan) {
+      const items = [
+        { n: analysis.singles, t: '单张点数' },
+        { n: analysis.pairs, t: '对子点数' },
+        { n: analysis.triples, t: '三张点数' },
+        { n: analysis.bombs, t: '炸弹点数' },
+        { n: minTurns, t: '估算最少手数' },
+        { n: analysis.bigCards, t: 'A/2/王张数' },
+        { n: analysis.lowCards, t: '7以下张数' }
+      ];
+      if (isGuandan) {
+        items.splice(4, 0, { n: analysis.straightFlush, t: '同花顺' });
+        items.push({ n: analysis.skyBomb ? 1 : 0, t: '天王炸' });
+      } else {
+        items.push({ n: analysis.rocket ? 1 : 0, t: '王炸' });
+      }
+      const box = $('eval-breakdown');
+      box.innerHTML = '';
+      items.forEach(it => {
+        const d = document.createElement('div');
+        d.className = 'bd-item';
+        d.innerHTML = `<div class="n">${it.n}</div><div class="t">${it.t}</div>`;
+        box.appendChild(d);
+      });
+    }
+
+    function generateEval() {
+      const handBox = $('eval-hand');
+      handBox.innerHTML = '';
+      let cards, result, levelValue = null, isGuandan = false;
+
+      if (evalMode === 'ddz') {
+        const deck = new Deck(1);
+        deck.shuffle(5);
+        const { hands } = deck.deal(1, 17, 0);
+        cards = hands[0];
+        result = HandEvaluator.evaluateDoudizhu(cards);
+      } else {
+        isGuandan = true;
+        levelValue = parseInt(levelSel.value, 10);
+        const deck = new Deck(2);
+        deck.shuffle(6);
+        const { hands } = deck.deal(1, 27, 0);
+        cards = hands[0];
+        cards.forEach(c => { c.isWild = GuandanRule.isWild(c, levelValue); });
+        result = HandEvaluator.evaluateGuandan(cards, levelValue);
+      }
+
+      cards.forEach(c => handBox.appendChild(renderCard(c, c.isWild)));
+
+      const score = result.score;
+      const scoreEl = $('eval-score');
+      scoreEl.textContent = score;
+      scoreEl.className = 'score-big ' + (score >= 60 ? 's-high' : score >= 35 ? 's-mid' : 's-low');
+
+      const a = result.analysis;
+      const meta = isGuandan
+        ? `<b>模式：</b>掼蛋（当前等级 ${GuandanRule.valueToLevelDisplay(levelValue)}）　|　<b>总张数：</b>${a.totalCards}　|　<b>最少手数：</b>${result.minTurns}`
+        : `<b>模式：</b>斗地主　|　<b>总张数：</b>${a.totalCards}　|　<b>最少手数：</b>${result.minTurns}`;
+      $('eval-meta').innerHTML = meta + '<br><span style="font-size:12px">评分项：大牌 ' +
+        result.breakdown.bigCards + ' / 炸弹 ' + result.breakdown.bombs + ' / 手数 ' +
+        result.breakdown.turns + ' / 结构 ' + Math.round(result.breakdown.structure || 0) +
+        (result.breakdown.lowPenalty ? ' / 低牌惩罚 ' + result.breakdown.lowPenalty : '') +
+        (result.breakdown.wild ? ' / 逢人配 ' + result.breakdown.wild : '') + '</span>';
+
+      renderBreakdown(a, result.minTurns, isGuandan);
+    }
+
+    generateEval();
+  })();
+  </script>
+</body>
+</html>

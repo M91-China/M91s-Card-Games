@@ -1,0 +1,234 @@
+/* 扑克牌样式 */
+
+/* 单张牌容器 */
+.card {
+  position: absolute;
+  width: var(--card-width);
+  height: var(--card-height);
+  border-radius: var(--card-radius);
+  background: var(--card-bg);
+  box-shadow: var(--card-shadow);
+  border: 1px solid var(--card-border);
+  cursor: pointer;
+  transition:
+    transform var(--anim-fast) ease-out,
+    box-shadow var(--anim-fast) ease-out,
+    top var(--anim-fast) ease-out,
+    left var(--anim-fast) ease-out;
+  overflow: hidden;
+  will-change: transform;
+  font-family: Arial, 'Helvetica Neue', sans-serif;
+  touch-action: manipulation;
+  backface-visibility: hidden;
+  -webkit-backface-visibility: hidden;
+}
+
+.card:hover {
+  box-shadow: var(--card-shadow-hover);
+  z-index: var(--z-card-selected) !important;
+}
+
+.card.selected {
+  transform: translateY(-15px);
+  box-shadow: var(--card-shadow-hover);
+  z-index: var(--z-card-selected) !important;
+}
+
+.card.hint-glow {
+  box-shadow: 0 0 12px 3px var(--color-gold), var(--card-shadow);
+}
+
+/* 牌背面 */
+.card-back {
+  width: 100%;
+  height: 100%;
+  background: var(--card-bg-back);
+  border-radius: calc(var(--card-radius) - 1px);
+  position: relative;
+}
+
+.card-back::before {
+  content: '';
+  position: absolute;
+  inset: 4px;
+  border: 2px solid rgba(255, 255, 255, 0.35);
+  border-radius: 4px;
+}
+
+.card-back::after {
+  content: '🎴';
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 28px;
+  opacity: 0.5;
+}
+
+/* 牌面内容 */
+.card-face {
+  width: 100%;
+  height: 100%;
+  padding: 3px 4px;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.card-corner {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  line-height: 1;
+  font-weight: bold;
+}
+
+.card-corner.top-left {
+  align-self: flex-start;
+}
+
+.card-corner.bottom-right {
+  position: absolute;
+  bottom: 3px;
+  right: 4px;
+  transform: rotate(180deg);
+}
+
+.card-rank {
+  font-size: 16px;
+  font-weight: 900;
+  line-height: 1;
+}
+
+.card-suit-small {
+  font-size: 12px;
+  line-height: 1;
+  margin-top: 1px;
+}
+
+.card-suit-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 30px;
+  font-weight: bold;
+  pointer-events: none;
+}
+
+.card.red {
+  color: var(--card-red);
+}
+
+.card.black {
+  color: var(--card-black);
+}
+
+/* 大小王特殊样式 */
+.card.joker-small {
+  background: linear-gradient(135deg, #2c3e50 0%, #1a252f 100%);
+  color: #fff;
+}
+
+.card.joker-big {
+  background: linear-gradient(135deg, #c0392b 0%, #922b21 100%);
+  color: #fff;
+}
+
+.card.joker-small .card-rank,
+.card.joker-big .card-rank {
+  font-size: 12px;
+}
+
+.card.joker-center {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  font-size: 22px;
+  font-weight: bold;
+  text-align: center;
+  line-height: 1.2;
+}
+
+/* 小尺寸牌（对手手牌） */
+.card.size-sm {
+  width: var(--card-width-sm);
+  height: var(--card-height-sm);
+}
+
+.card.size-sm .card-rank {
+  font-size: 12px;
+}
+
+.card.size-sm .card-suit-small {
+  font-size: 9px;
+}
+
+.card.size-sm .card-suit-center {
+  font-size: 22px;
+}
+
+/* 大尺寸牌（底牌） */
+.card.size-lg {
+  width: var(--card-width-lg);
+  height: var(--card-height-lg);
+}
+
+.card.size-lg .card-rank {
+  font-size: 20px;
+}
+
+.card.size-lg .card-suit-small {
+  font-size: 14px;
+}
+
+.card.size-lg .card-suit-center {
+  font-size: 38px;
+}
+
+/* 出牌区牌（横向排列） */
+.played-cards {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 0;
+}
+
+.played-cards .card {
+  position: relative;
+  margin-left: -20px;
+  cursor: default;
+}
+
+.played-cards .card:first-child {
+  margin-left: 0;
+}
+
+.played-cards .card:hover {
+  transform: none;
+}
+
+/* 手牌扇形区域 */
+.hand-area {
+  position: relative;
+  height: var(--card-height);
+  display: flex;
+  justify-content: center;
+  align-items: flex-end;
+}
+
+.hand-cards {
+  position: relative;
+  height: 100%;
+}
+
+/* 不可点击状态 */
+.card.disabled {
+  cursor: not-allowed;
+  opacity: 0.85;
+}
+
+.card.disabled:hover {
+  box-shadow: var(--card-shadow);
+}

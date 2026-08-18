@@ -1,0 +1,26 @@
+{
+  "editor.tabSize": 2,
+  "editor.formatOnSave": true,
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.codeActionsOnSave": {
+    "source.fixAll": true
+  },
+  "javascript.format.enable": true,
+  "files.associations": {
+    "*.html": "html"
+  },
+  "emmet.triggerExpansionOnTab": true,
+  "liveServer.settings.port": 5500,
+  "liveServer.settings.root": "/src",
+  "files.exclude": {
+    "**/.git": true,
+    "**/.DS_Store": true
+  },
+  "editor.fontLigatures": true,
+  "editor.fontFamily": "'Consolas', 'Courier New', monospace",
+  "editor.lineHeight": 22,
+  "bracketPairColorization.enabled": true,
+  "guides.bracketPairs": true,
+  "workbench.iconTheme": "vs-seti",
+  "terminal.integrated.defaultProfile.windows": "PowerShell"
+}

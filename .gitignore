@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Debug profiles
+.vscode/chrome-debug-profile/
+.vscode/edge-debug-profile/
+
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor
+*.swp
+*.swo
+*~
+
+# Env
+.env
+.env.local
+
+# Cache
+.cache/
+.parcel-cache/

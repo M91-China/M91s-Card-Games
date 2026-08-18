@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>统计与成就测试 - HappyCard</title>
+  <style>
+    * { box-sizing: border-box; }
+    body { font-family: 'Microsoft YaHei', sans-serif; background: #0f1729; color: #e8eaf0; padding: 24px; margin: 0; }
+    h1 { color: #ffd24a; margin: 0 0 8px; }
+    .back { color: #7eb6ff; text-decoration: none; font-size: 14px; }
+    .back:hover { text-decoration: underline; }
+    .toolbar { display: flex; gap: 12px; align-items: center; margin: 16px 0; flex-wrap: wrap; }
+    button { padding: 10px 18px; font-size: 14px; background: #0d8a4e; color: #fff; border: none; border-radius: 6px; cursor: pointer; font-weight: bold; }
+    button:hover { background: #0f9b58; }
+    button.danger { background: #b33; }
+    button.danger:hover { background: #c44; }
+    button.blue { background: #2a6; }
+    .summary { font-size: 15px; padding: 12px 18px; background: rgba(255,255,255,0.06); border-radius: 8px; }
+    .summary .pass { color: #4caf50; font-weight: bold; }
+    .summary .fail { color: #ef5350; font-weight: bold; }
+    .group { margin: 20px 0; }
+    .group h2 { color: #7eb6ff; font-size: 16px; border-left: 4px solid #7eb6ff; padding-left: 10px; margin: 0 0 10px; }
+    .case { padding: 8px 14px; margin: 4px 0; border-radius: 4px; font-family: 'Consolas', monospace; font-size: 13px; display: flex; justify-content: space-between; align-items: center; }
+    .pass { background: rgba(76,175,80,0.15); border-left: 4px solid #4caf50; }
+    .fail { background: rgba(239,83,80,0.15); border-left: 4px solid #ef5350; }
+    .case .desc { flex: 1; }
+    .case .expect { color: rgba(255,255,255,0.55); margin: 0 12px; font-size: 12px; }
+    .case .tag { font-weight: bold; }
+    .case.pass .tag { color: #4caf50; }
+    .case.fail .tag { color: #ef5350; }
+    .preview { background: rgba(0,0,0,0.3); border-radius: 8px; padding: 16px; margin-top: 16px; }
+    .preview h3 { color: #ffd24a; margin: 0 0 10px; font-size: 15px; }
+    .preview pre { color: #a8d4a8; font-size: 12px; overflow-x: auto; margin: 0; white-space: pre-wrap; }
+    .ach-preview { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; }
+    .ach-chip { padding: 6px 12px; border-radius: 20px; font-size: 13px; background: rgba(255,210,74,0.15); border: 1px solid rgba(255,210,74,0.3); color: #ffd24a; }
+    .ach-chip.locked { background: rgba(255,255,255,0.05); border-color: rgba(255,255,255,0.1); color: rgba(255,255,255,0.4); }
+  </style>
+</head>
+<body>
+  <h1>📊 统计与成就系统测试</h1>
+  <a class="back" href="../src/index.html">← 返回大厅</a>
+  <div class="toolbar">
+    <button onclick="runAll()">▶ 运行测试</button>
+    <button class="blue" onclick="simulateGames()">🎮 模拟10局</button>
+    <button class="danger" onclick="resetAll()">🗑 重置数据</button>
+    <div class="summary" id="summary">点击"运行测试"</div>
+  </div>
+  <div id="groups"></div>
+  <div class="preview">
+    <h3>📈 当前统计数据</h3>
+    <pre id="statsPreview">（点击"运行测试"或"模拟10局"查看）</pre>
+    <h3 style="margin-top:16px">🏅 成就状态</h3>
+    <div class="ach-preview" id="achPreview"></div>
+  </div>
+
+  <script src="../src/js/data/achievements.js"></script>
+  <script src="../src/js/utils/storage.js"></script>
+  <script src="../src/js/utils/StatsManager.js"></script>
+  <script>
+    const testGroups = [];
+    let allResults = [];
+
+    function group(name, fn) { testGroups.push({ name, fn }); }
+    function assert(cond, desc, expect, actual) {
+      return { desc, pass: !!cond, expect: String(expect), actual: String(actual) };
+    }
+
+    // 每个测试前使用独立 storage key 避免污染
+    function freshManager() {
+      const store = {};
+      const mockStorage = {
+        get: (k) => store[k] !== undefined ? JSON.parse(JSON.stringify(store[k])) : null,
+        set: (k, v) => { store[k] = JSON.parse(JSON.stringify(v)); },
+        remove: (k) => { delete store[k]; }
+      };
+      return new StatsManager(mockStorage);
+    }
+
+    // ========== StatsManager 基础功能 ==========
+    group('默认数据结构', () => {
+      const mgr = freshManager();
+      const s = mgr.getStats();
+      return [
+        assert(s.doudizhu.totalGames === 0, '斗地主总局数初始为0', 0, s.doudizhu.totalGames),
+        assert(s.guandan.totalGames === 0, '掼蛋总局数初始为0', 0, s.guandan.totalGames),
+        assert(s.doudizhu.wins === 0, '斗地主胜场初始为0', 0, s.doudizhu.wins),
+        assert(s.doudizhu.maxStreak === 0, '最高连胜初始为0', 0, s.doudizhu.maxStreak),
+        assert(s.guandan.maxLevel === 2, '掼蛋最高等级初始为2', 2, s.guandan.maxLevel),
+        assert(Array.isArray(s.doudizhu.history), 'history是数组', true, Array.isArray(s.doudizhu.history))
+      ];
+    });
+
+    group('记录斗地主对局', () => {
+      const mgr = freshManager();
+      mgr.recordDoudizhu({ isWin: true, multiplier: 3, role: 'landlord', bombs: 1, rockets: 1, scoreDelta: 30 });
+      const s = mgr.getStats();
+      return [
+        assert(s.doudizhu.totalGames === 1, '总局数+1', 1, s.doudizhu.totalGames),
+        assert(s.doudizhu.wins === 1, '胜场+1', 1, s.doudizhu.wins),
+        assert(s.doudizhu.landlordWins === 1, '地主胜+1', 1, s.doudizhu.landlordWins),
+        assert(s.doudizhu.bombs === 1, '炸弹数+1', 1, s.doudizhu.bombs),
+        assert(s.doudizhu.rockets === 1, '王炸数+1', 1, s.doudizhu.rockets),
+        assert(s.doudizhu.maxMultiplier === 3, '最高倍数=3', 3, s.doudizhu.maxMultiplier),
+        assert(s.doudizhu.score === 30, '积分=30', 30, s.doudizhu.score),
+        assert(s.doudizhu.currentStreak === 1, '连胜=1', 1, s.doudizhu.currentStreak),
+        assert(s.doudizhu.history.length === 1, '历史记录1条', 1, s.doudizhu.history.length)
+      ];
+    });
+
+    group('记录掼蛋对局', () => {
+      const mgr = freshManager();
+      mgr.recordGuandan({ isWin: true, upLevel: 2, bombs: 2, straightFlushes: 1, skyBombs: 0, levelValue: 7, levelDisplay: '7', scoreDelta: 2 });
+      const s = mgr.getStats();
+      return [
+        assert(s.guandan.totalGames === 1, '总局数+1', 1, s.guandan.totalGames),
+        assert(s.guandan.wins === 1, '胜场+1', 1, s.guandan.wins),
+        assert(s.guandan.bombs === 2, '炸弹数+2', 2, s.guandan.bombs),
+        assert(s.guandan.straightFlushes === 1, '同花顺+1', 1, s.guandan.straightFlushes),
+        assert(s.guandan.maxLevel === 7, '最高等级=7', 7, s.guandan.maxLevel),
+        assert(s.guandan.score === 2, '积分=2', 2, s.guandan.score),
+        assert(s.guandan.history.length === 1, '历史记录1条', 1, s.guandan.history.length)
+      ];
+    });
+
+    group('连胜/连败统计', () => {
+      const mgr = freshManager();
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      const s1 = mgr.getStats();
+      const streakAfter3 = s1.doudizhu.maxStreak;
+      mgr.recordDoudizhu({ isWin: false, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: -10 });
+      const s2 = mgr.getStats();
+      return [
+        assert(streakAfter3 === 3, '3连胜后maxStreak=3', 3, streakAfter3),
+        assert(s2.doudizhu.currentStreak === 0, '失败后currentStreak归零', 0, s2.doudizhu.currentStreak),
+        assert(s2.doudizhu.maxStreak === 3, '失败后maxStreak仍为3', 3, s2.doudizhu.maxStreak)
+      ];
+    });
+
+    group('农民/地主身份统计', () => {
+      const mgr = freshManager();
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'landlord', bombs: 0, rockets: 0, scoreDelta: 10 });
+      mgr.recordDoudizhu({ isWin: false, multiplier: 1, role: 'landlord', bombs: 0, rockets: 0, scoreDelta: -10 });
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      const s = mgr.getStats();
+      return [
+        assert(s.doudizhu.landlordWins === 1, '地主胜1', 1, s.doudizhu.landlordWins),
+        assert(s.doudizhu.landlordLosses === 1, '地主负1', 1, s.doudizhu.landlordLosses),
+        assert(s.doudizhu.farmerWins === 1, '农民胜1', 1, s.doudizhu.farmerWins),
+        assert(s.doudizhu.farmerLosses === 0, '农民负0', 0, s.doudizhu.farmerLosses)
+      ];
+    });
+
+    // ========== 成就检测 ==========
+    group('成就解锁 - 综合', () => {
+      const mgr = freshManager();
+      const n1 = mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      const n2 = mgr.recordGuandan({ isWin: true, upLevel: 1, bombs: 0, straightFlushes: 0, skyBombs: 0, levelValue: 3, levelDisplay: '3', scoreDelta: 1 });
+      const ids = [...n1.map(a=>a.id), ...n2.map(a=>a.id)];
+      return [
+        assert(ids.includes('first_game'), '首局解锁"初出茅庐"', true, ids.includes('first_game')),
+        assert(ids.includes('first_win'), '首胜解锁"旗开得胜"', true, ids.includes('first_win')),
+        assert(ids.includes('ddz_first'), '解锁"斗地主新手"', true, ids.includes('ddz_first')),
+        assert(ids.includes('ddz_first_win'), '解锁"斗地主首胜"', true, ids.includes('ddz_first_win')),
+        assert(ids.includes('gd_first'), '解锁"掼蛋新手"', true, ids.includes('gd_first')),
+        assert(ids.includes('gd_first_win'), '解锁"掼蛋首胜"', true, ids.includes('gd_first_win')),
+        assert(ids.includes('all_rounder'), '两种模式都玩解锁"全能选手"', true, ids.includes('all_rounder'))
+      ];
+    });
+
+    group('成就解锁 - 炸弹类', () => {
+      const mgr = freshManager();
+      const n1 = mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 1, scoreDelta: 10 });
+      const n2 = mgr.recordGuandan({ isWin: true, upLevel: 1, bombs: 0, straightFlushes: 1, skyBombs: 0, levelValue: 3, levelDisplay: '3', scoreDelta: 1 });
+      const n3 = mgr.recordGuandan({ isWin: false, upLevel: 0, bombs: 0, straightFlushes: 0, skyBombs: 1, levelValue: 3, levelDisplay: '3', scoreDelta: -1 });
+      return [
+        assert(n1.some(a=>a.id==='ddz_rocket'), '王炸解锁"王炸降临"', true, n1.some(a=>a.id==='ddz_rocket')),
+        assert(n2.some(a=>a.id==='gd_straight_flush'), '同花顺解锁"同花顺"', true, n2.some(a=>a.id==='gd_straight_flush')),
+        assert(n3.some(a=>a.id==='gd_sky_bomb'), '天王炸解锁"天王炸"', true, n3.some(a=>a.id==='gd_sky_bomb'))
+      ];
+    });
+
+    group('成就不重复解锁', () => {
+      const mgr = freshManager();
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 1, scoreDelta: 10 });
+      const n2 = mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 1, scoreDelta: 10 });
+      return [
+        assert(n2.length === 0, '第二次王炸不重复解锁"王炸降临"', 0, n2.length),
+        assert(!n2.some(a=>a.id==='ddz_first'), '不重复解锁"斗地主新手"', true, !n2.some(a=>a.id==='ddz_first'))
+      ];
+    });
+
+    group('高倍成就', () => {
+      const mgr = freshManager();
+      const n1 = mgr.recordDoudizhu({ isWin: true, multiplier: 3, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 30 });
+      const n2 = mgr.recordDoudizhu({ isWin: true, multiplier: 6, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 60 });
+      return [
+        assert(!n1.some(a=>a.id==='ddz_high_multi'), '3倍不触发高倍成就', false, n1.some(a=>a.id==='ddz_high_multi')),
+        assert(n2.some(a=>a.id==='ddz_high_multi'), '6倍触发高倍成就', true, n2.some(a=>a.id==='ddz_high_multi'))
+      ];
+    });
+
+    group('汇总数据', () => {
+      const mgr = freshManager();
+      mgr.recordDoudizhu({ isWin: true, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: 10 });
+      mgr.recordDoudizhu({ isWin: false, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: -10 });
+      mgr.recordGuandan({ isWin: true, upLevel: 1, bombs: 0, straightFlushes: 0, skyBombs: 0, levelValue: 3, levelDisplay: '3', scoreDelta: 1 });
+      const sum = mgr.getSummary();
+      return [
+        assert(sum.total === 3, '总局数=3', 3, sum.total),
+        assert(sum.wins === 2, '胜场=2', 2, sum.wins),
+        assert(sum.losses === 1, '负场=1', 1, sum.losses),
+        assert(sum.winRate === '66.7%', '胜率66.7%', '66.7%', sum.winRate),
+        assert(sum.totalAchievements === 21, '成就总数=21', 21, sum.totalAchievements),
+        assert(sum.unlockedCount > 0, '有已解锁成就', true, sum.unlockedCount > 0)
+      ];
+    });
+
+    group('历史记录上限', () => {
+      const mgr = freshManager();
+      for (let i = 0; i < 55; i++) {
+        mgr.recordDoudizhu({ isWin: i % 2 === 0, multiplier: 1, role: 'farmer', bombs: 0, rockets: 0, scoreDelta: i % 2 === 0 ? 10 : -10 });
+      }
+      const s = mgr.getStats();
+      return [
+        assert(s.doudizhu.history.length === 50, '历史记录最多保留50条', 50, s.doudizhu.history.length),
+        assert(s.doudizhu.totalGames === 55, '总局数仍为55', 55, s.doudizhu.totalGames)
+      ];
+    });
+
+    function runAll() {
+      allResults = [];
+      for (const g of testGroups) {
+        try {
+          const cases = g.fn();
+          allResults.push({ name: g.name, cases });
+        } catch (e) {
+          allResults.push({ name: g.name + ' [异常]', cases: [{ desc: e.message, pass: false, expect: '', actual: e.stack }] });
+        }
+      }
+      render();
+      updatePreview();
+    }
+
+    function render() {
+      const groups = document.getElementById('groups');
+      groups.innerHTML = '';
+      let pass = 0, fail = 0;
+      for (const g of allResults) {
+        const groupEl = document.createElement('div');
+        groupEl.className = 'group';
+        groupEl.innerHTML = `<h2>${g.name} (${g.cases.filter(c=>c.pass).length}/${g.cases.length})</h2>`;
+        for (const c of g.cases) {
+          const el = document.createElement('div');
+          el.className = 'case ' + (c.pass ? 'pass' : 'fail');
+          if (c.pass) pass++; else fail++;
+          el.innerHTML = `
+            <span class="desc">${c.desc}</span>
+            <span class="expect">期望: ${c.expect}</span>
+            <span class="expect">实际: ${c.actual}</span>
+            <span class="tag">${c.pass ? '✓ PASS' : '✗ FAIL'}</span>
+          `;
+          groupEl.appendChild(el);
+        }
+        groups.appendChild(groupEl);
+      }
+      const total = pass + fail;
+      const rate = total ? ((pass/total)*100).toFixed(1) : 0;
+      document.getElementById('summary').innerHTML =
+        `总计 <b>${total}</b> ：<span class="pass">${pass} 通过</span> / <span class="fail">${fail} 失败</span> | 通过率 ${rate}%`;
+    }
+
+    function updatePreview() {
+      const s = statsManager.getStats();
+      document.getElementById('statsPreview').textContent = JSON.stringify({
+        doudizhu: { ...s.doudizhu, history: `[${s.doudizhu.history.length}条记录]` },
+        guandan: { ...s.guandan, history: `[${s.guandan.history.length}条记录]` }
+      }, null, 2);
+      const states = statsManager.getAchievementStates();
+      const el = document.getElementById('achPreview');
+      el.innerHTML = states.map(a =>
+        `<span class="ach-chip ${a.unlocked ? '' : 'locked'}">${a.icon} ${a.name}</span>`
+      ).join('');
+    }
+
+    function simulateGames() {
+      for (let i = 0; i < 5; i++) {
+        statsManager.recordDoudizhu({
+          isWin: Math.random() > 0.4,
+          multiplier: Math.ceil(Math.random() * 3),
+          role: Math.random() > 0.6 ? 'landlord' : 'farmer',
+          bombs: Math.random() > 0.7 ? 1 : 0,
+          rockets: Math.random() > 0.9 ? 1 : 0,
+          scoreDelta: Math.floor(Math.random() * 40) - 10
+        });
+      }
+      for (let i = 0; i < 5; i++) {
+        statsManager.recordGuandan({
+          isWin: Math.random() > 0.45,
+          upLevel: Math.ceil(Math.random() * 3),
+          bombs: Math.random() > 0.6 ? 1 : 0,
+          straightFlushes: Math.random() > 0.85 ? 1 : 0,
+          skyBombs: Math.random() > 0.95 ? 1 : 0,
+          levelValue: 3 + Math.floor(Math.random() * 12),
+          levelDisplay: '5',
+          scoreDelta: Math.floor(Math.random() * 4) - 1
+        });
+      }
+      runAll();
+    }
+
+    function resetAll() {
+      if (!confirm('确定重置所有统计和成就数据？')) return;
+      statsManager.resetAll();
+      runAll();
+    }
+
+    runAll();
+  </script>
+</body>
+</html>
